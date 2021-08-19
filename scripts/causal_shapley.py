@@ -15,26 +15,49 @@ def get_baseline(X, model):
     n_features = X.shape[1]
     X = np.reshape(X, (len(X), 1, n_features))
     for i in X:
-        # x = np.reshape(i, (1, n_features))
         fx += model.predict(i)
     return fx / len(X)
 
 
-def get_expectation(X, x, baseline, indices, indices_baseline, model, N, is_classification, xi):
+def count_rows(X, indices, indices_baseline, x, baseline):
+    vector = np.zeros(len(X[0]))
+    for i in indices:
+        vector[i] = x[i]
+    for i in indices_baseline:
+        vector[i] = baseline[i]
+    kk = 0
+
+
+def get_expectation(X, x, indices, indices_baseline, baseline, model, N, is_classification, xi, v2=True):
     x_hat = np.zeros(N)
+    x_hat_2 = np.zeros(N)
     for j in indices:
         x_hat[j] = x[j]
-    # for j in indices_baseline:
-    #     x_hat[j] = baseline[j]
-    f1, f2 = 0, 0
-    for i in range(len(X)):
-        for j in indices_baseline:
-            x_hat[j] = 
+        x_hat_2[j] = x[j]
+    if v2:
+        f1, f2 = 0, 0
+        for i in range(len(X)):
+            for j in indices_baseline:
+                x_hat[j] = X[i][j]
+                x_hat_2[j] = X[i][j]
             x_hat = np.reshape(x_hat, (1, N))
-            f1 = model.predict_proba(x_hat)[0][1] if is_classification else model.predict(x_hat)
-            x_hat[0][xi] = baseline[xi]
-            f2 = model.predict_proba(x_hat)[0][1] if is_classification else model.predict(x_hat)
-    return abs(f1 - f2), f1, f2
+            kk = count_rows(X, indices, indices_baseline, x, X[i])
+            f1 += model.predict_proba(x_hat)[0][1] if is_classification else model.predict(x_hat)
+            x_hat_2[xi] = X[i][xi]
+            x_hat_2 = np.reshape(x_hat_2, (1, N))
+            f2 += model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
+            x_hat = np.squeeze(x_hat)
+            x_hat_2 = np.squeeze(x_hat_2)
+    else:
+        for j in indices_baseline:
+            x_hat[j] = baseline[j]
+            x_hat_2[j] = baseline[j]
+        x_hat = np.reshape(x_hat, (1, N))
+        f1 = model.predict_proba(x_hat)[0][1] if is_classification else model.predict(x_hat)
+        x_hat_2[xi] = baseline[xi]
+        x_hat_2 = np.reshape(x_hat_2, (1, N))
+        f2 = model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
+    return abs(f1 - f2) / len(X), f1, f2
 
 
 def approximate_shapley(xi, N, X, x, m, model, baseline, is_classification, global_shap=False):
@@ -44,30 +67,14 @@ def approximate_shapley(xi, N, X, x, m, model, baseline, is_classification, glob
 
     count_negative = 0
     for i in range(m):
-        # baseline = random.choice(X)
         r = list(R[i])
-        # print(r.index(xi))
         xi_index = r.index(xi)
         s_features = r[:xi_index + 1]
         s_hat_features = r[xi_index + 1:]
 
-        # print("\n\nr: ", r, "S: ", s_features, "S_hat: ", s_hat_features)
-        # for j in s_features:
-        #     x_hat[j] = x[j]
-        # for j in s_hat_features:
-        #     x_hat[j] = baseline[j]
-        # x_hat = np.reshape(x_hat, (1, N))
-        #
-        # f1 = get_expectation(X, x_hat, baseline, s_features, s_hat_features, model, N, is_classification, xi)
-        # # print("x: ",  x, "\t", "base_line: ", baseline, "\tx_hat: ", x_hat)
-        #
-        # x_hat_2 = x_hat
-        # x_hat_2[0][xi] = baseline[xi]
-        # f2 = model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
-        abs_diff, f1, f2 = get_expectation(X, x, baseline, s_features, s_hat_features, model, N,
+        abs_diff, f1, f2 = get_expectation(X, x, s_features, s_hat_features, baseline, model, N,
                                            is_classification, xi)
         score = score + abs_diff
-        # print("x_hat_2: ", x_hat_2)
     if not global_shap:
         if f2 > f1:
             count_negative -= 1
@@ -134,5 +141,5 @@ def test(file_name='synthetic1'):
     print("f(Ex): ", model.predict(baseline))
 
 
-main(file_name='synthetic2', local_shap=12, is_classification=False, global_shap=False)
+main(file_name='synthetic_discrete', local_shap=13, is_classification=True, global_shap=False)
 # test(file_name='synthetic2')
