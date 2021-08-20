@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import random
-import copy
+import collections, numpy
 import math as mt
 from condtional_prob import conditional
 
@@ -19,33 +19,56 @@ def get_baseline(X, model):
     return fx / len(X)
 
 
-def count_rows(X, indices, indices_baseline, x, baseline):
-    vector = np.zeros(len(X[0]))
-    for i in indices:
-        vector[i] = x[i]
-    for i in indices_baseline:
-        vector[i] = baseline[i]
-    kk = 0
+def get_probabiity(unique_count, n, x):
+    count = unique_count[tuple(x)]
+    return count / n
 
 
-def get_expectation(X, x, indices, indices_baseline, baseline, model, N, is_classification, xi, v2=True):
+def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, model, N, is_classification, xi,
+                    version='2'):
     x_hat = np.zeros(N)
     x_hat_2 = np.zeros(N)
+    len_X = len(X)
+    proba1, proba2 = 0,0
+    kk1, kk2 = [], []
     for j in indices:
         x_hat[j] = x[j]
         x_hat_2[j] = x[j]
-    if v2:
+    if version == '2':
         f1, f2 = 0, 0
         for i in range(len(X)):
             for j in indices_baseline:
                 x_hat[j] = X[i][j]
                 x_hat_2[j] = X[i][j]
+            if x_hat.tolist() not in kk1:
+                kk1.append(x_hat.tolist())
+            if x_hat_2.tolist() not in kk2:
+                kk2.append(x_hat_2.tolist())
             x_hat = np.reshape(x_hat, (1, N))
-            kk = count_rows(X, indices, indices_baseline, x, X[i])
             f1 += model.predict_proba(x_hat)[0][1] if is_classification else model.predict(x_hat)
             x_hat_2[xi] = X[i][xi]
             x_hat_2 = np.reshape(x_hat_2, (1, N))
             f2 += model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
+            x_hat = np.squeeze(x_hat)
+            x_hat_2 = np.squeeze(x_hat_2)
+    elif version == '3':
+        f1, f2 = 0, 0
+        for i in unique_count:
+            X = np.asarray(i)
+            for j in indices_baseline:
+                x_hat[j] = X[j]
+                x_hat_2[j] = X[j]
+            prob_x_hat = get_probabiity(unique_count, len_X, x_hat)
+            proba1 += prob_x_hat
+            x_hat = np.reshape(x_hat, (1, N))
+            f1 = f1 + (model.predict_proba(x_hat)[0][1] * prob_x_hat if is_classification else model.predict(
+                x_hat) * prob_x_hat)
+            x_hat_2[xi] = X[xi]
+            prob_x_hat_2 = get_probabiity(unique_count, len_X, x_hat_2)
+            proba2 += prob_x_hat_2
+            x_hat_2 = np.reshape(x_hat_2, (1, N))
+            f2 = f2 + (model.predict_proba(x_hat_2)[0][1] * prob_x_hat_2 if is_classification else model.predict(
+                x_hat_2) * prob_x_hat_2)
             x_hat = np.squeeze(x_hat)
             x_hat_2 = np.squeeze(x_hat_2)
     else:
@@ -57,10 +80,10 @@ def get_expectation(X, x, indices, indices_baseline, baseline, model, N, is_clas
         x_hat_2[xi] = baseline[xi]
         x_hat_2 = np.reshape(x_hat_2, (1, N))
         f2 = model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
-    return abs(f1 - f2) / len(X), f1, f2
+    return abs(f1 - f2)/len_X, f1, f2
 
 
-def approximate_shapley(xi, N, X, x, m, model, baseline, is_classification, global_shap=False):
+def approximate_shapley(xi, N, X, x, m, model, baseline, unique_count, is_classification, global_shap=False):
     R = list(itertools.permutations(range(N)))
     random.shuffle(R)
     score = 0
@@ -72,7 +95,7 @@ def approximate_shapley(xi, N, X, x, m, model, baseline, is_classification, glob
         s_features = r[:xi_index + 1]
         s_hat_features = r[xi_index + 1:]
 
-        abs_diff, f1, f2 = get_expectation(X, x, s_features, s_hat_features, baseline, model, N,
+        abs_diff, f1, f2 = get_expectation(X, x, s_features, s_hat_features, baseline, unique_count, model, N,
                                            is_classification, xi)
         score = score + abs_diff
     if not global_shap:
@@ -92,7 +115,7 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
 
     n_features = len(df.columns[:-1])
     X = df.iloc[:, :n_features].values
-
+    unique_count = collections.Counter(map(tuple, X))
     ##### f(x) with baseline
     f_o = get_baseline(X, model)
     baseline = np.mean(X, axis=0)
@@ -107,7 +130,7 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
         for feature in range(n_features):
             for x in X:
                 global_shap_score += approximate_shapley(feature, n_features, X, x, mt.factorial(n_features), model,
-                                                         baseline, is_classification, global_shap)
+                                                         baseline, unique_count, is_classification, global_shap)
             global_shap_score = global_shap_score / len(X)
             print("x", str(feature + 1), ": ", global_shap_score)
     # print(global_shap_score)
@@ -116,6 +139,7 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
         local_shap_score = 0
         for feature in range(n_features):
             local_shap_score = approximate_shapley(feature, n_features, X, x, mt.factorial(n_features), model, baseline,
+                                                   unique_count,
                                                    is_classification)
             # local_shap_score = local_shap_score / len(X)
             print("x", str(feature + 1), ": ", local_shap_score)
@@ -141,5 +165,5 @@ def test(file_name='synthetic1'):
     print("f(Ex): ", model.predict(baseline))
 
 
-main(file_name='synthetic_discrete', local_shap=13, is_classification=True, global_shap=False)
+main(file_name='synthetic_discrete', local_shap=14, is_classification=True, global_shap=False)
 # test(file_name='synthetic2')
