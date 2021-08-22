@@ -19,14 +19,14 @@ def get_baseline(X, model):
     return fx / len(X)
 
 
-def get_probabiity(unique_count, x, indices_baseline, n):
+def get_probabiity(unique_count, x_hat, indices_baseline, n):
     if len(indices_baseline) > 0:
         count = 0
         for i in unique_count:
             check = True
             key = np.asarray(i)
             for j in indices_baseline:
-                check = check and key[j] == x[j]
+                check = check and key[j] == x_hat[j]
             if check:
                 count += unique_count[i]
         return count / n
@@ -34,18 +34,66 @@ def get_probabiity(unique_count, x, indices_baseline, n):
         return 1
 
 
+def conditional_prob(unique_count, x_hat, indices, indices_baseline, n):
+    numerator_indices = indices + indices_baseline
+    numerator = get_probabiity(unique_count, x_hat, numerator_indices, n)
+    denominator = get_probabiity(unique_count, x_hat, indices, n)
+    return numerator / denominator
+
+
 def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, model, N, is_classification, xi,
-                    version='3'):
+                    version='4'):
     x_hat = np.zeros(N)
     x_hat_2 = np.zeros(N)
     len_X = len(X)
-    proba1, proba2 = 0,0
-    baseline_check_1, baseline_check_2 = [], []
-    indices_baseline_2 = []
     for j in indices:
         x_hat[j] = x[j]
         x_hat_2[j] = x[j]
-    if version == '2':
+    if version == '3' or version == '4':
+        proba1, proba2 = 0, 0
+        baseline_check_1, baseline_check_2 = [], []
+        f1, f2 = 0, 0
+        indices_baseline_2 = indices_baseline[:]
+        for i in unique_count:
+            X = np.asarray(i)
+            for j in indices_baseline:
+                x_hat[j] = X[j]
+                x_hat_2[j] = X[j]
+
+            # No repetition
+            # Eg if baseline_indices is null, it'll only run once as x_hat will stay the same over each iteration
+            if x_hat.tolist() not in baseline_check_1:
+                baseline_check_1.append(x_hat.tolist())
+                prob_x_hat = get_probabiity(unique_count, x_hat, indices_baseline,
+                                            len_X) if version == '3' else conditional_prob(unique_count, x_hat, indices,
+                                                                                         indices_baseline, len_X)
+                proba1 += prob_x_hat
+                x_hat = np.reshape(x_hat, (1, N))
+                f1 = f1 + (model.predict_proba(x_hat)[0][1] * prob_x_hat if is_classification else model.predict(
+                    x_hat) * prob_x_hat)
+
+            # xi index will be given to baseline for f2
+            x_hat_2[xi] = X[xi]
+            if xi not in indices_baseline_2:
+                indices_baseline_2.append(xi)
+
+            # No repetition
+            indices_2 = indices[:]
+            indices_2.remove(xi)
+            if x_hat_2.tolist() not in baseline_check_2:
+                baseline_check_2.append(x_hat_2.tolist())
+                prob_x_hat_2 = get_probabiity(unique_count, x_hat_2, indices_baseline_2,
+                                              len_X) if version == '3' else conditional_prob(unique_count, x_hat_2,
+                                                                                           indices_2,
+                                                                                           indices_baseline_2, len_X)
+                proba2 += prob_x_hat_2
+                x_hat_2 = np.reshape(x_hat_2, (1, N))
+                f2 = f2 + (model.predict_proba(x_hat_2)[0][1] * prob_x_hat_2 if is_classification else model.predict(
+                    x_hat_2) * prob_x_hat_2)
+            x_hat = np.squeeze(x_hat)
+            x_hat_2 = np.squeeze(x_hat_2)
+        absolute_diff = abs(f1 - f2)
+    elif version == '2':
         f1, f2 = 0, 0
         for i in range(len(X)):
             for j in indices_baseline:
@@ -58,41 +106,9 @@ def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, mod
             f2 += model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
             x_hat = np.squeeze(x_hat)
             x_hat_2 = np.squeeze(x_hat_2)
-        absolute_diff = abs(f1 - f2)/len_X
-        f1 = f1/len_X
-        f2 = f2/len_X
-    elif version == '3':
-        f1, f2 = 0, 0
-        indices_baseline_2 = indices_baseline[:]
-        for i in unique_count:
-            X = np.asarray(i)
-            for j in indices_baseline:
-                x_hat[j] = X[j]
-                x_hat_2[j] = X[j]
-
-            # No repetition
-            if x_hat.tolist() not in baseline_check_1:
-                baseline_check_1.append(x_hat.tolist())
-                prob_x_hat = get_probabiity(unique_count, x_hat, indices_baseline, len_X)
-                proba1 += prob_x_hat
-                x_hat = np.reshape(x_hat, (1, N))
-                f1 = f1 + (model.predict_proba(x_hat)[0][1] * prob_x_hat if is_classification else model.predict(
-                    x_hat) * prob_x_hat)
-            x_hat_2[xi] = X[xi]
-            if xi not in indices_baseline_2:
-                indices_baseline_2.append(xi)
-
-            # No repetition
-            if x_hat_2.tolist() not in baseline_check_2:
-                baseline_check_2.append(x_hat_2.tolist())
-                prob_x_hat_2 = get_probabiity(unique_count, x_hat_2, indices_baseline_2, len_X)
-                proba2 += prob_x_hat_2
-                x_hat_2 = np.reshape(x_hat_2, (1, N))
-                f2 = f2 + (model.predict_proba(x_hat_2)[0][1] * prob_x_hat_2 if is_classification else model.predict(
-                    x_hat_2) * prob_x_hat_2)
-            x_hat = np.squeeze(x_hat)
-            x_hat_2 = np.squeeze(x_hat_2)
-        absolute_diff = abs(f1 - f2)
+        absolute_diff = abs(f1 - f2) / len_X
+        f1 = f1 / len_X
+        f2 = f2 / len_X
     else:
         for j in indices_baseline:
             x_hat[j] = baseline[j]
@@ -133,6 +149,7 @@ def approximate_shapley(xi, N, X, x, m, model, baseline, unique_count, is_classi
 
 
 def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classification=False):
+    sigma_phi = 0
     df = pd.read_csv('../output/dataset/' + file_name + '.csv')
     print(df.columns)
     model = pickle.load(open('../output/model/' + file_name + '.sav', 'rb'))
@@ -167,8 +184,10 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
                                                    is_classification)
             # local_shap_score = local_shap_score / len(X)
             print("x", str(feature + 1), ": ", local_shap_score)
+            sigma_phi += local_shap_score
         x = np.reshape(x, (1, n_features))
         print("local f(x): ", model.predict(x))
+        print("Sigma_phi: ", sigma_phi)
 
 
 def test(file_name='synthetic1'):
