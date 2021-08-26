@@ -5,6 +5,7 @@ import pandas as pd
 import random
 import collections, numpy
 import math as mt
+from joblib import Parallel, delayed
 from condtional_prob import conditional
 
 random.seed(42)
@@ -19,6 +20,7 @@ def get_baseline(X, model):
     return fx / len(X)
 
 
+# Probability is taken over indices of baseline only
 def get_probabiity(unique_count, x_hat, indices_baseline, n):
     if len(indices_baseline) > 0:
         count = 0
@@ -41,15 +43,33 @@ def conditional_prob(unique_count, x_hat, indices, indices_baseline, n):
     return numerator / denominator
 
 
+def causal_prob(unique_count, x_hat, indices, indices_baseline, causal_struc, n):
+    p = 1
+    for i in indices_baseline:
+        intersect_s, intersect_s_hat = [], []
+        intersect_s_hat.append(i)
+        if causal_struc[i] != None:
+            if causal_struc[i] in indices or causal_struc[i] in indices_baseline:
+                intersect_s.append(causal_struc[i])
+            p *= conditional_prob(unique_count, x_hat, intersect_s, intersect_s_hat, n)
+        else:
+            p *= conditional_prob(unique_count, x_hat, [], intersect_s_hat, n)
+    return p
+
+
 def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, model, N, is_classification, xi,
-                    version='4'):
+                    version='5'):
+    causal_struc = {1: 0,
+                    0: None,
+                    3: 2,
+                    2: None}
     x_hat = np.zeros(N)
     x_hat_2 = np.zeros(N)
     len_X = len(X)
     for j in indices:
         x_hat[j] = x[j]
         x_hat_2[j] = x[j]
-    if version == '3' or version == '4':
+    if version == '3' or version == '4' or version == '5':
         proba1, proba2 = 0, 0
         baseline_check_1, baseline_check_2 = [], []
         f1, f2 = 0, 0
@@ -64,9 +84,12 @@ def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, mod
             # Eg if baseline_indices is null, it'll only run once as x_hat will stay the same over each iteration
             if x_hat.tolist() not in baseline_check_1:
                 baseline_check_1.append(x_hat.tolist())
-                prob_x_hat = get_probabiity(unique_count, x_hat, indices_baseline,
-                                            len_X) if version == '3' else conditional_prob(unique_count, x_hat, indices,
-                                                                                         indices_baseline, len_X)
+                if version == '3':
+                    prob_x_hat = get_probabiity(unique_count, x_hat, indices_baseline, len_X)
+                elif version == '4':
+                    prob_x_hat = conditional_prob(unique_count, x_hat, indices, indices_baseline, len_X)
+                else:
+                    prob_x_hat = causal_prob(unique_count, x_hat, indices, indices_baseline, causal_struc, len_X)
                 proba1 += prob_x_hat
                 x_hat = np.reshape(x_hat, (1, N))
                 f1 = f1 + (model.predict_proba(x_hat)[0][1] * prob_x_hat if is_classification else model.predict(
@@ -82,10 +105,13 @@ def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, mod
             indices_2.remove(xi)
             if x_hat_2.tolist() not in baseline_check_2:
                 baseline_check_2.append(x_hat_2.tolist())
-                prob_x_hat_2 = get_probabiity(unique_count, x_hat_2, indices_baseline_2,
-                                              len_X) if version == '3' else conditional_prob(unique_count, x_hat_2,
-                                                                                           indices_2,
-                                                                                           indices_baseline_2, len_X)
+                if version == '3':
+                    prob_x_hat_2 = get_probabiity(unique_count, x_hat_2, indices_baseline_2, len_X)
+                elif version == '4':
+                    prob_x_hat_2 = conditional_prob(unique_count, x_hat_2, indices_2, indices_baseline_2, len_X)
+                else:
+                    prob_x_hat_2 = causal_prob(unique_count, x_hat_2, indices_2, indices_baseline_2, causal_struc,
+                                               len_X)
                 proba2 += prob_x_hat_2
                 x_hat_2 = np.reshape(x_hat_2, (1, N))
                 f2 = f2 + (model.predict_proba(x_hat_2)[0][1] * prob_x_hat_2 if is_classification else model.predict(
@@ -124,6 +150,7 @@ def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, mod
 
 
 def approximate_shapley(xi, N, X, x, m, model, baseline, unique_count, is_classification, global_shap=False):
+    # print(i)
     R = list(itertools.permutations(range(N)))
     random.shuffle(R)
     score = 0
@@ -164,14 +191,21 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
     if is_classification:
         baseline = [1 if i > 0.5 else 0 for i in baseline]
     print("Baseline f(x): ", f_o)
-
+    count = 0
     # x = X[:10]
     if global_shap:
         global_shap_score = 0
         for feature in range(n_features):
-            for x in X:
-                global_shap_score += approximate_shapley(feature, n_features, X, x, mt.factorial(n_features), model,
-                                                         baseline, unique_count, is_classification, global_shap)
+            # for x in X:
+            #     print(count)
+            #     count+=1
+            #     global_shap_score += approximate_shapley(feature, n_features, X, x, mt.factorial(n_features), model,
+            #                                              baseline, unique_count, is_classification, global_shap)
+            global_shap_score = Parallel(n_jobs=-1)(
+                delayed(approximate_shapley)(i, feature, n_features, X, x, mt.factorial(n_features), model,
+                                             baseline, unique_count, is_classification, global_shap) for
+                i, x in enumerate(X))
+            global_shap_score = sum(global_shap_score)
             global_shap_score = global_shap_score / len(X)
             print("x", str(feature + 1), ": ", global_shap_score)
     # print(global_shap_score)
@@ -208,5 +242,5 @@ def test(file_name='synthetic1'):
     print("f(Ex): ", model.predict(baseline))
 
 
-main(file_name='synthetic_discrete', local_shap=16, is_classification=True, global_shap=False)
+main(file_name='synthetic_discrete', local_shap=13, is_classification=True, global_shap=False)
 # test(file_name='synthetic2')
