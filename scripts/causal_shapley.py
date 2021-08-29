@@ -3,10 +3,11 @@ import pickle
 import numpy as np
 import pandas as pd
 import random
-import collections, numpy
+import collections
 import math as mt
 from joblib import Parallel, delayed
-from condtional_prob import conditional
+import timeit
+from condtional_prob import causal_prob, conditional_prob, get_probabiity
 
 random.seed(42)
 
@@ -20,45 +21,11 @@ def get_baseline(X, model):
     return fx / len(X)
 
 
-# Probability is taken over indices of baseline only
-def get_probabiity(unique_count, x_hat, indices_baseline, n):
-    if len(indices_baseline) > 0:
-        count = 0
-        for i in unique_count:
-            check = True
-            key = np.asarray(i)
-            for j in indices_baseline:
-                check = check and key[j] == x_hat[j]
-            if check:
-                count += unique_count[i]
-        return count / n
-    else:
-        return 1
-
-
-def conditional_prob(unique_count, x_hat, indices, indices_baseline, n):
-    numerator_indices = indices + indices_baseline
-    numerator = get_probabiity(unique_count, x_hat, numerator_indices, n)
-    denominator = get_probabiity(unique_count, x_hat, indices, n)
-    return numerator / denominator
-
-
-def causal_prob(unique_count, x_hat, indices, indices_baseline, causal_struc, n):
-    p = 1
-    for i in indices_baseline:
-        intersect_s, intersect_s_hat = [], []
-        intersect_s_hat.append(i)
-        if causal_struc[i] != None:
-            if causal_struc[i] in indices or causal_struc[i] in indices_baseline:
-                intersect_s.append(causal_struc[i])
-            p *= conditional_prob(unique_count, x_hat, intersect_s, intersect_s_hat, n)
-        else:
-            p *= conditional_prob(unique_count, x_hat, [], intersect_s_hat, n)
-    return p
-
-
-def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, model, N, is_classification, xi,
+def get_expectation(permutation, X, x, baseline, unique_count, model, N, is_classification, xi,
                     version='5'):
+    xi_index = permutation.index(xi)
+    indices = permutation[:xi_index + 1]
+    indices_baseline = permutation[xi_index + 1:]
     causal_struc = {1: 0,
                     0: None,
                     3: 2,
@@ -146,6 +113,7 @@ def get_expectation(X, x, indices, indices_baseline, baseline, unique_count, mod
         f2 = model.predict_proba(x_hat_2)[0][1] if is_classification else model.predict(x_hat_2)
         absolute_diff = abs(f1 - f2) / len_X
     # print("V1- Abs: ", f1, f2)
+    # print(absolute_diff, f1, f2)
     return absolute_diff, f1, f2
 
 
@@ -154,24 +122,36 @@ def approximate_shapley(xi, N, X, x, m, model, baseline, unique_count, is_classi
     R = list(itertools.permutations(range(N)))
     random.shuffle(R)
     score = 0
-
     count_negative = 0
+    vf1, vf2 = 0, 0
     for i in range(m):
-        r = list(R[i])
-        xi_index = r.index(xi)
-        s_features = r[:xi_index + 1]
-        s_hat_features = r[xi_index + 1:]
-
-        abs_diff, f1, f2 = get_expectation(X, x, s_features, s_hat_features, baseline, unique_count, model, N,
+        abs_diff, f1, f2 = get_expectation(list(R[i]), X, x, baseline, unique_count, model, N,
                                            is_classification, xi)
-        score = score + abs_diff
-    if not global_shap:
-        if f2 > f1:
-            count_negative -= 1
-        else:
-            count_negative += 1
-        if count_negative < 0:
-            score = -1 * score
+        vf1 += f1
+        vf2 += f2
+        score += abs_diff
+        if not global_shap:
+            if vf2 > vf1:
+                count_negative -= 1
+            else:
+                count_negative += 1
+    if count_negative < 0 and not global_shap:
+        score = -1 * score
+
+    # For parallel
+    # abs_diff, f1, f2 = zip(*Parallel(n_jobs=-1)(
+    #     delayed(get_expectation)(list(R[i]), X, x, baseline, unique_count, model, N, is_classification, xi) for
+    #     i in range(m)))
+
+    # score = sum(abs_diff)
+    # vf1, vf2 = sum(f1), sum(f2)
+    # if not global_shap:
+    #     if vf2 > vf1:
+    #         count_negative -= 1
+    #     else:
+    #         count_negative += 1
+    #     if count_negative < 0:
+    #         score = -1 * score
     return score / m
 
 
@@ -196,11 +176,6 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
     if global_shap:
         global_shap_score = 0
         for feature in range(n_features):
-            # for x in X:
-            #     print(count)
-            #     count+=1
-            #     global_shap_score += approximate_shapley(feature, n_features, X, x, mt.factorial(n_features), model,
-            #                                              baseline, unique_count, is_classification, global_shap)
             global_shap_score = Parallel(n_jobs=-1)(
                 delayed(approximate_shapley)(i, feature, n_features, X, x, mt.factorial(n_features), model,
                                              baseline, unique_count, is_classification, global_shap) for
@@ -242,5 +217,8 @@ def test(file_name='synthetic1'):
     print("f(Ex): ", model.predict(baseline))
 
 
+start = timeit.default_timer()
 main(file_name='synthetic_discrete', local_shap=13, is_classification=True, global_shap=False)
+stop = timeit.default_timer()
+print('Time: ', stop - start)
 # test(file_name='synthetic2')
