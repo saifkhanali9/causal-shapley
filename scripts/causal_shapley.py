@@ -26,10 +26,11 @@ def get_expectation(permutation, X, x, baseline, unique_count, model, N, is_clas
     xi_index = permutation.index(xi)
     indices = permutation[:xi_index + 1]
     indices_baseline = permutation[xi_index + 1:]
-    causal_struc = {1: 0,
+    causal_struc = {1: None,
                     0: None,
-                    3: 2,
-                    2: None}
+                    2: [0, 1],
+                    3: [0, 1, 2]
+                    }
     x_hat = np.zeros(N)
     x_hat_2 = np.zeros(N)
     len_X = len(X)
@@ -218,7 +219,7 @@ def test(file_name='synthetic1'):
 
 
 start = timeit.default_timer()
-main(file_name='synthetic_discrete', local_shap=13, is_classification=True, global_shap=False)
+main(file_name='synthetic_discrete_2', local_shap=14, is_classification=True, global_shap=False)
 stop = timeit.default_timer()
 print('Time: ', stop - start)
 # test(file_name='synthetic2')

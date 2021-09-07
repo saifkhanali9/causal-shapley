@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # Probability is taken over indices of baseline only
 def get_probabiity(unique_count, x_hat, indices_baseline, n):
     if len(indices_baseline) > 0:
@@ -28,10 +29,13 @@ def causal_prob(unique_count, x_hat, indices, indices_baseline, causal_struc, n)
     for i in indices_baseline:
         intersect_s, intersect_s_hat = [], []
         intersect_s_hat.append(i)
+        if 1 in indices and len(indices) == 1:
+            pass
         if causal_struc[i] != None:
-            if causal_struc[i] in indices or causal_struc[i] in indices_baseline:
-                intersect_s.append(causal_struc[i])
+            for index in causal_struc[i]:
+                if index in indices or index in indices_baseline:
+                    intersect_s.append(index)
             p *= conditional_prob(unique_count, x_hat, intersect_s, intersect_s_hat, n)
         else:
-            p *= conditional_prob(unique_count, x_hat, [], intersect_s_hat, n)
+            p *= get_probabiity(unique_count, x_hat, intersect_s_hat, n)
     return p

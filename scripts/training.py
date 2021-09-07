@@ -46,5 +46,5 @@ def test(folder_name='synthetic1'):
     print("Testing: ", result)
 
 
-train(model_type='classification',file_name='synthetic_discrete', save_model=True)
+train(model_type='classification',file_name='synthetic_discrete_2', save_model=True)
 test(folder_name='synthetic_discrete')

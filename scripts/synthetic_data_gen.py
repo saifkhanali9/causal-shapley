@@ -111,12 +111,12 @@ def _induce_noise(x):
 def _add_features(D, file_name):
     D = np.array(D)
     x1 = D[:, 0]
-    x3 = D[:, 1]
     x2 = _induce_noise(x1)
+    x3 = _induce_noise(x2)
     x4 = _induce_noise(x3)
     y = []
     for i in range(len(x1)):
-        y.append(x1[i] * x2[i])
+        y.append(x1[i] * x3[i])
     # _induce_noise(xi)
     # x2[noise_index] = 0
     # print(noise_index)
@@ -125,7 +125,7 @@ def _add_features(D, file_name):
     # return
 
 
-def gen_desc(n_instances, sub_categories, file_name='synthetic_discrete.csv'):
+def gen_desc(n_instances, sub_categories, file_name='synthetic_discrete_2.csv'):
     """
     Generates dataset directly without having to save a json file.
     Args:
@@ -157,6 +157,6 @@ def gen_dataset(n_instances=1000, file_name='synthetic.csv'):
     df.to_csv(Path('../output/dataset/') / file_name, index=False)
 
 
-# gen_dataset(n_instances=10000, file_name='synthetic2.csv')
+# gen_dataset(n_instances=10000, file_name='synthetic_discrete_2.csv')
 
-print(gen_desc(10000, [2, 2]))
+print(gen_desc(10000, [2]))
