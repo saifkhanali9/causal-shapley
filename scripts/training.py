@@ -38,7 +38,7 @@ def train(model_type='regression', file_name='synthetic1', save_model=False):
         y_test.to_csv(Path('../output/dataset/') / file_name / 'y_test.csv', index=False)
 
 
-def test(folder_name='synthetic1'):
+def model_test(folder_name='synthetic1'):
     X_test = pd.read_csv('../output/dataset/' + folder_name + '/X_test.csv')
     y_test = pd.read_csv('../output/dataset/' + folder_name + '/y_test.csv')
     loaded_model = pickle.load(open('../output/model/' + folder_name + '.sav', 'rb'))
@@ -47,4 +47,4 @@ def test(folder_name='synthetic1'):
 
 
 train(model_type='classification',file_name='synthetic_discrete_2', save_model=True)
-test(folder_name='synthetic_discrete')
+model_test(folder_name='synthetic_discrete_2')

@@ -84,6 +84,7 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
             print("x", str(feature + 1), ": ", global_shap_score)
     # print(global_shap_score)
     else:
+        sigma_phi = 0
         x = X[local_shap]
         local_shap_score = 0
         for feature in range(n_features):
@@ -91,28 +92,13 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
                                                    is_classification)
             # local_shap_score = local_shap_score / len(X)
             print("x", str(feature + 1), ": ", local_shap_score)
+            sigma_phi += local_shap_score
         x = np.reshape(x, (1, n_features))
         print("local f(x): ", model.predict(x))
+        print("Sigma_phi + E(fX): ", round(sigma_phi + f_o[0], 3))
 
 
-def test(file_name='synthetic1', local_shap=0, global_shap=True):
-    df = pd.read_csv('../output/dataset/' + file_name + '.csv')
-    print(df.columns)
-    model = pickle.load(open('../output/model/' + file_name + '.sav', 'rb'))
 
-    n_features = len(df.columns[:-1])
-    X = df.iloc[:, :n_features].values
-    fx = 0
-    for i in X:
-        x = np.reshape(i, (1, n_features))
-        fx += model.predict(x)
-    print("E(fx): ", fx / len(X))
-    ##### f(x) with baseline
-    baseline = np.mean(X, axis=0)
-    baseline = np.reshape(baseline, (1, n_features))
-    print("f(Ex): ", model.predict(baseline))
-
-
-# main(file_name='synthetic_discrete', local_shap=12, is_classification=True, global_shap=False)
-main(file_name='synthetic2', local_shap=12, is_classification=False, global_shap=False)
+main(file_name='synthetic_discrete_2', local_shap=15, is_classification=True, global_shap=False)
+# main(file_name='synthetic2', local_shap=12, is_classification=False, global_shap=False)
 # test(file_name='synthetic_discrete')

@@ -21,6 +21,11 @@ def conditional_prob(unique_count, x_hat, indices, indices_baseline, n):
     numerator_indices = indices + indices_baseline
     numerator = get_probabiity(unique_count, x_hat, numerator_indices, n)
     denominator = get_probabiity(unique_count, x_hat, indices, n)
+    try:
+        kk = numerator / denominator
+    except ZeroDivisionError:
+        denominator = 1e-7
+        # pass
     return numerator / denominator
 
 
@@ -29,10 +34,8 @@ def causal_prob(unique_count, x_hat, indices, indices_baseline, causal_struc, n)
     for i in indices_baseline:
         intersect_s, intersect_s_hat = [], []
         intersect_s_hat.append(i)
-        if 1 in indices and len(indices) == 1:
-            pass
-        if causal_struc[i] != None:
-            for index in causal_struc[i]:
+        if len(causal_struc[str(i)]) > 0:
+            for index in causal_struc[str(i)]:
                 if index in indices or index in indices_baseline:
                     intersect_s.append(index)
             p *= conditional_prob(unique_count, x_hat, intersect_s, intersect_s_hat, n)

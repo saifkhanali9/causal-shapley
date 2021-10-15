@@ -7,6 +7,8 @@ import pandas as pd
 from numpy.random import rand
 import random
 
+random.seed(42)
+
 
 def _indices(shapes):
     idx = [0] * len(shapes)
@@ -111,12 +113,12 @@ def _induce_noise(x):
 def _add_features(D, file_name):
     D = np.array(D)
     x1 = D[:, 0]
-    x2 = _induce_noise(x1)
-    x3 = _induce_noise(x2)
+    x2 = D[:, 1]
+    x3 = _induce_noise(x2) * x1
     x4 = _induce_noise(x3)
     y = []
     for i in range(len(x1)):
-        y.append(x1[i] * x3[i])
+        y.append(x1[i] * x2[i] * x3[i] * x4[i])
     # _induce_noise(xi)
     # x2[noise_index] = 0
     # print(noise_index)
@@ -159,4 +161,4 @@ def gen_dataset(n_instances=1000, file_name='synthetic.csv'):
 
 # gen_dataset(n_instances=10000, file_name='synthetic_discrete_2.csv')
 
-print(gen_desc(10000, [2]))
+print(gen_desc(10000, [2, 2]))
