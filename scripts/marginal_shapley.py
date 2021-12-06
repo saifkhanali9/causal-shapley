@@ -95,10 +95,10 @@ def main(file_name='synthetic1', local_shap=0, global_shap=True, is_classificati
             sigma_phi += local_shap_score
         x = np.reshape(x, (1, n_features))
         print("local f(x): ", model.predict(x))
-        print("Sigma_phi + E(fX): ", round(sigma_phi + f_o[0], 3))
+        print("Sigma_phi + E(fX): ", sigma_phi + f_o[0])
 
 
 
-main(file_name='synthetic_discrete_2', local_shap=15, is_classification=True, global_shap=False)
+main(file_name='synthetic2', local_shap=15, is_classification=False, global_shap=False)
 # main(file_name='synthetic2', local_shap=12, is_classification=False, global_shap=False)
 # test(file_name='synthetic_discrete')

@@ -1,7 +1,7 @@
 import math as mt
 import os
 from pathlib import Path
-
+from sklearn.preprocessing import KBinsDiscretizer
 import numpy as np
 import pandas as pd
 from numpy.random import rand
@@ -101,7 +101,7 @@ def _create_pmatrix(instances, sub_categories):
 
 
 def _induce_noise(x):
-    noise_index = list(dict.fromkeys([random.randrange(1, len(x)) for _ in range(int(len(x) * 0.15))]))
+    noise_index = list(dict.fromkeys([random.randrange(1, len(x)) for _ in range(int(len(x) * 0.05))]))
     new_x = [0] * len(x)
     for i in range(len(x)):
         new_x[i] = x[i]
@@ -113,12 +113,12 @@ def _induce_noise(x):
 def _add_features(D, file_name):
     D = np.array(D)
     x1 = D[:, 0]
-    x2 = D[:, 1]
-    x3 = _induce_noise(x2) * x1
+    x2 = _induce_noise(x1)
+    x3 = D[:, 1]
     x4 = _induce_noise(x3)
     y = []
     for i in range(len(x1)):
-        y.append(x1[i] * x2[i] * x3[i] * x4[i])
+        y.append(x2[i] * x1[i])
     # _induce_noise(xi)
     # x2[noise_index] = 0
     # print(noise_index)
@@ -127,7 +127,7 @@ def _add_features(D, file_name):
     # return
 
 
-def gen_desc(n_instances, sub_categories, file_name='synthetic_discrete_2.csv'):
+def gen_desc(n_instances, sub_categories, file_name='synthetic_discrete_3.csv'):
     """
     Generates dataset directly without having to save a json file.
     Args:
@@ -145,7 +145,7 @@ def gen_desc(n_instances, sub_categories, file_name='synthetic_discrete_2.csv'):
     # return D
 
 
-def gen_dataset(n_instances=1000, file_name='synthetic.csv'):
+def gen_dataset(n_instances=1000, file_name='synthetic'):
     try:
         os.mkdir('../dataset/')
     except FileExistsError:
@@ -156,9 +156,20 @@ def gen_dataset(n_instances=1000, file_name='synthetic.csv'):
     x3 = x4 + np.random.randn(n_instances)
     y = x1 + np.random.randn(n_instances) + x2
     df = pd.DataFrame({"x1": x1, "x2": x2, "x3": x3, "x4": x4, "y": y})
-    df.to_csv(Path('../output/dataset/') / file_name, index=False)
+    discretizer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='quantile')
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1]
+    y = y.to_numpy()
+    y = np.reshape(y, (len(y), 1))
+    discretizer.fit(X)
+    discrete_X = discretizer.transform(X)
+    discrete_dataset = np.append(discrete_X, y, axis=1)
+    df.to_csv('../output/dataset/' + file_name + '.csv', index=False)
+    discrete_df = pd.DataFrame(data=discrete_dataset, columns=['x1', 'x2', 'x3', 'x4', 'y'])
+    discrete_df.to_csv('../output/dataset/' + file_name + '_disc.csv', index=False)
+    test = 0
 
 
-# gen_dataset(n_instances=10000, file_name='synthetic_discrete_2.csv')
+# gen_dataset(n_instances=10000, file_name='synthetic_cont_1')
 
 print(gen_desc(10000, [2, 2]))

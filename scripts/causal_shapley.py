@@ -8,7 +8,9 @@ import math as mt
 from joblib import Parallel, delayed
 import timeit
 from condtional_prob import causal_prob, conditional_prob, get_probabiity
-import json
+import xgboost
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 random.seed(42)
 
@@ -18,7 +20,7 @@ def get_baseline(X, model):
     n_features = X.shape[1]
     X = np.reshape(X, (len(X), 1, n_features))
     for i in X:
-        fx += model.predict_proba(i)
+        fx += model.predict(i)
     return fx / len(X)
 
 
@@ -40,7 +42,8 @@ def get_value(version, permutation, X, x, unique_count, causal_struct, model, N,
         baseline_check_1, baseline_check_2 = [], []
         f1, f2 = 0, 0
         indices_baseline_2 = indices_baseline[:]
-        for i in unique_count:
+        for index, i in enumerate(unique_count):
+            print(index, '/', len(unique_count))
             X = np.asarray(i)
             for j in indices_baseline:
                 x_hat[j] = X[j]
@@ -88,6 +91,7 @@ def get_value(version, permutation, X, x, unique_count, causal_struct, model, N,
     elif version == '1':
         f1, f2 = 0, 0
         for i in range(len(X)):
+            print(i)
             for j in indices_baseline:
                 x_hat[j] = X[i][j]
                 x_hat_2[j] = X[i][j]
@@ -106,47 +110,45 @@ def get_value(version, permutation, X, x, unique_count, causal_struct, model, N,
 
 def approximate_shapley(version, xi, N, X, x, m, model, unique_count, causal_struct, is_classification,
                         global_shap=False):
-    R = list(itertools.permutations(range(N)))
-    random.shuffle(R)
+    # R = list(itertools.permutations(range(N)))
+    # random.shuffle(R)
     score = 0
     count_negative = 0
     vf1, vf2 = 0, 0
-    for i in range(m):
-        abs_diff, f1, f2 = get_value(version, list(R[i]), X, x, unique_count, causal_struct, model, N,
-                                     is_classification, xi)
-        vf1 += f1
-        vf2 += f2
-        score += abs_diff
-        if not global_shap:
-            if vf2 > vf1:
-                count_negative -= 1
-            else:
-                count_negative += 1
+    res = [random.randrange(1, m, 1) for i in range(1000)]
+    for index, i in enumerate(itertools.permutations(range(N))):
+        if index in res:
+            print(index, '/', m)
+            abs_diff, f1, f2 = get_value(version, list(i), X, x, unique_count, causal_struct, model, N,
+                                         is_classification, xi)
+            vf1 += f1
+            vf2 += f2
+            score += abs_diff
+            if not global_shap:
+                if vf2 > vf1:
+                    count_negative -= 1
+                else:
+                    count_negative += 1
     if count_negative < 0 and not global_shap:
         score = -1 * score
     return score / m
 
 
-def main(version, file_name, local_shap=0, global_shap=True, is_classification=False):
+def shapley_main(version, df_X, model, causal_struct, local_shap=0, global_shap=True, is_classification=False):
     sigma_phi = 0
-    df = pd.read_csv('../output/dataset/' + file_name + '.csv')
-    print(df.columns)
-    model = pickle.load(open('../output/model/' + file_name + '.sav', 'rb'))
-    causal_struct = None
-    try:
-        causal_struct = json.load(open('../output/dataset/' + file_name + '/causal_struct.json', 'rb'))
-    except FileNotFoundError:
-        pass
-    n_features = len(df.columns[:-1])
-    X = df.iloc[:, :n_features].values
+    feature_names = df_X.columns
+    X = df_X.values
+    n_features = len(feature_names)
     unique_count = collections.Counter(map(tuple, X))
     ##### f(x) with baseline
-    f_o = get_baseline(X, model)[0, 1]
+    # f_o = get_baseline(X, model)[0]
+    f_o = 0.0249
     baseline = np.mean(X, axis=0)
     # To convert baseline (mean) to discrete
     if is_classification:
         baseline = [1 if i > 0.5 else 0 for i in baseline]
     print("Baseline f(x): ", f_o)
+    feature_score_list = []
     if global_shap:
         for feature in range(n_features):
             global_shap_score = Parallel(n_jobs=-1)(
@@ -163,16 +165,12 @@ def main(version, file_name, local_shap=0, global_shap=True, is_classification=F
                                                    unique_count, causal_struct,
                                                    is_classification)
             print("x", str(feature + 1), ": ", local_shap_score)
+            feature_score_list.append(local_shap_score)
             sigma_phi += local_shap_score
         x = np.reshape(x, (1, n_features))
         print("local f(x): ", model.predict(x))
         # Making use of Sigma_phi = f(x) + f_o
         # Where f_o = E(f(X))
-        print("Sigma_phi + E(fX): ", round(sigma_phi + f_o, 3))
-
-
-start = timeit.default_timer()
-main(version='2', file_name='synthetic_discrete_2', local_shap=12, is_classification=True, global_shap=True)
-stop = timeit.default_timer()
-print('Time: ', stop - start)
-# test(file_name='synthetic2')
+        print("Sigma_phi + E(fX): ", sigma_phi + f_o)
+    sns.barplot(y=feature_names, x=feature_score_list)
+    plt.show()
