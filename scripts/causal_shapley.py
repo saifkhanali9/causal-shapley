@@ -43,7 +43,7 @@ def get_value(version, permutation, X, x, unique_count, causal_struct, model, N,
         f1, f2 = 0, 0
         indices_baseline_2 = indices_baseline[:]
         for index, i in enumerate(unique_count):
-            print(index, '/', len(unique_count))
+            # print(index, '/', len(unique_count))
             X = np.asarray(i)
             for j in indices_baseline:
                 x_hat[j] = X[j]
@@ -91,7 +91,7 @@ def get_value(version, permutation, X, x, unique_count, causal_struct, model, N,
     elif version == '1':
         f1, f2 = 0, 0
         for i in range(len(X)):
-            print(i)
+            # print(i)
             for j in indices_baseline:
                 x_hat[j] = X[i][j]
                 x_hat_2[j] = X[i][j]
@@ -118,7 +118,7 @@ def approximate_shapley(version, xi, N, X, x, m, model, unique_count, causal_str
     res = [random.randrange(1, m, 1) for i in range(1000)]
     for index, i in enumerate(itertools.permutations(range(N))):
         if index in res:
-            print(index, '/', m)
+            # print(index, '/', m)
             abs_diff, f1, f2 = get_value(version, list(i), X, x, unique_count, causal_struct, model, N,
                                          is_classification, xi)
             vf1 += f1
@@ -141,8 +141,8 @@ def shapley_main(version, df_X, model, causal_struct, local_shap=0, global_shap=
     n_features = len(feature_names)
     unique_count = collections.Counter(map(tuple, X))
     ##### f(x) with baseline
-    # f_o = get_baseline(X, model)[0]
-    f_o = 0.0249
+    f_o = get_baseline(X, model)[0]
+    # f_o = 0.0249
     baseline = np.mean(X, axis=0)
     # To convert baseline (mean) to discrete
     if is_classification:
