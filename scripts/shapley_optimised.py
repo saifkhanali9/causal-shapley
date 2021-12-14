@@ -20,10 +20,13 @@ def create_s_u_j(s, j):
         if j < s[i] and i == (len(s) - 1):
             s.insert(i, j)
             break
+        if j < s[i] and i == 0:
+            s.insert(i, j)
+            break
         if j > s[i] and i == (len(s) - 1):
             s.append(j)
             break
-        elif j > s[i] and j > s[i + 1]:
+        elif j > s[i] and j < s[i + 1]:
             s.insert(i + 1, j)
             break
     return s
@@ -71,13 +74,13 @@ value_function = {}
 # baseline_dict_value_parent = {}
 
 
-def baseline(X, x, features_in_use, unique_count, model):
-    # feature_key = " ".join(str(f) for f in features_in_use)
+def baseline(X, x, features_baseline, unique_count, model):
+    # feature_key = " ".join(str(f) for f in features_baseline)
     v = 0
     countt = 0
     # if feature_key in value_function.keys():
     #     return baseline_dict_prob[feature_key]
-    if len(features_in_use) == len(x):
+    if len(features_baseline) == len(x):
         return baseline_V
     else:
         baseline_check = []
@@ -87,14 +90,14 @@ def baseline(X, x, features_in_use, unique_count, model):
             # temp_row = row[:]
             temp_row = np.zeros(len(x))
             temp_row[:] = x
-            # for i in features_in_use:
-            temp_row[features_in_use] = row[features_in_use]
-            if features_in_use not in baseline_check:
-                baseline_check.append(features_in_use)
+            # for i in features_baseline:
+            temp_row[features_baseline] = row[features_baseline]
+            if temp_row[features_baseline].tolist() not in baseline_check:
+                baseline_check.append(temp_row[features_baseline].tolist())
                 # if feature_key in baseline_dict_prob.keys():
                 #     temp_p = baseline_dict_prob[feature_key]
                 # else:
-                temp_p = get_probability(unique_count, x, features_in_use, X.shape[0])
+                temp_p = get_probability(unique_count, x, features_baseline, X.shape[0])
                 #     # Above statement to not compute p again
                 #     baseline_dict_prob[feature_key] = temp_p
                 # if feature_key in baseline_dict_value.keys():
@@ -126,8 +129,10 @@ def shap_optimized(X, local_index, model):
             # x = X[list(s)]
             s_union_j = s[:]
             s_baseline = list(set(s).symmetric_difference(features_list))
-            s_union_j = create_s_u_j(s_union_j, i)
-            s_union_j_baseline = list(set(s_union_j).symmetric_difference(features_list))
+            # s_baseline.remove(i)
+            s_union_j_baseline = s_baseline[:]
+            s_union_j_baseline.remove(i)
+            # s_union_j_baseline = list(set(s_union_j).symmetric_difference(features_list))
             v_u_j = baseline(X, x, s_union_j_baseline, unique_count, model)
             v = baseline(X, x, s_baseline, unique_count, model)
             if v_u_j >= v:
@@ -153,4 +158,4 @@ model = pickle.load(open(model_path, 'rb'))
 X = pd.read_csv(file_path).to_numpy()
 X = X[:, :-1]
 baseline_V = get_baseline(X, model)
-shap_optimized(X, 14, model)
+shap_optimized(X, 15, model)
