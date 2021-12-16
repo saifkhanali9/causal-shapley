@@ -7,6 +7,14 @@ import math
 from itertools import chain, combinations
 
 
+class SyntheticModel():
+    def __init__(self):
+        pass
+
+    def predict(self, x):
+        return x[0]
+
+
 def calc_permutations(S, p):
     return (math.factorial(len(S)) * math.factorial(p - len(S) - 1)) / math.factorial(p)
 
@@ -37,7 +45,7 @@ def get_baseline(X, model):
     n_features = X.shape[1]
     X = np.reshape(X, (len(X), 1, n_features))
     for i in X:
-        fx += model.predict(i)
+        fx += model.predict(i)[0]
     return fx / len(X)
 
 
@@ -46,11 +54,11 @@ def get_probability(unique_count, x_hat, indices_baseline, n):
     # if len(indices_baseline) > 0:
     count = 0
     for i in unique_count:
-        check = True
+        # check = True
         key = np.asarray(i)
-        for j in indices_baseline:
-            check = check and key[j] == x_hat[j]
-        if check:
+        # for j in indices_baseline:
+        if np.array_equal(key[indices_baseline], x_hat[indices_baseline]):
+        # if check:
             count += unique_count[i]
     return count / n
     # else:
@@ -84,28 +92,37 @@ def baseline(X, x, features_baseline, unique_count, model):
         return baseline_V
     else:
         baseline_check = []
-        for row in X:
-            # countt+= 1
-            # print(countt)
-            # temp_row = row[:]
-            temp_row = np.zeros(len(x))
-            temp_row[:] = x
-            # for i in features_baseline:
-            temp_row[features_baseline] = row[features_baseline]
-            if temp_row[features_baseline].tolist() not in baseline_check:
-                baseline_check.append(temp_row[features_baseline].tolist())
-                # if feature_key in baseline_dict_prob.keys():
-                #     temp_p = baseline_dict_prob[feature_key]
-                # else:
-                temp_p = get_probability(unique_count, x, features_baseline, X.shape[0])
-                #     # Above statement to not compute p again
-                #     baseline_dict_prob[feature_key] = temp_p
-                # if feature_key in baseline_dict_value.keys():
-                #     temp_v = baseline_dict_value[feature_key]
-                # else:
-                temp_v = model.predict(temp_row.reshape(1, -1))
+        if True:
+            for row in X:
+                # countt+= 1
+                # print(countt)
+                # temp_row = row[:]
+                temp_row = np.zeros(len(x))
+                temp_row[:] = x
+                # for i in features_baseline:
+                temp_row[features_baseline] = row[features_baseline]
+                if temp_row[features_baseline].tolist() not in baseline_check:
+                    baseline_check.append(temp_row[features_baseline].tolist())
+                    # if feature_key in baseline_dict_prob.keys():
+                    #     temp_p = baseline_dict_prob[feature_key]
+                    # else:
+                    temp_p = get_probability(unique_count, temp_row, features_baseline, X.shape[0])
+                    #     # Above statement to not compute p again
+                    #     baseline_dict_prob[feature_key] = temp_p
+                    # if feature_key in baseline_dict_value.keys():
+                    #     temp_v = baseline_dict_value[feature_key]
+                    # else:
+                    temp_v = model.predict_proba(temp_row.reshape(1, -1))[0][1]
                     # baseline_dict_value[feature_key] = temp_v
-                v += (temp_v * temp_p)
+                    v += (temp_v * temp_p)
+        else:
+            temp_row = np.zeros(len(x))
+            for row in X:
+                temp_row[:] = x
+                temp_row[features_baseline] = row[features_baseline]
+                v += model.predict_proba(temp_row.reshape(1, -1))[0][1]
+            v = v/len(X)
+
         # value_function[feature_key] = v
         return v
 
@@ -123,7 +140,6 @@ def shap_optimized(X, local_index, model):
         x = X[local_index]
         phi_i = 0
         count_neg = 0
-        count_pos = 0
         for s in S:
             # print(s)
             # x = X[list(s)]
@@ -136,13 +152,13 @@ def shap_optimized(X, local_index, model):
             v_u_j = baseline(X, x, s_union_j_baseline, unique_count, model)
             v = baseline(X, x, s_baseline, unique_count, model)
             if v_u_j >= v:
-                count_pos += 1
+                count_neg -= 1
             else:
                 count_neg += 1
             # diff_v = v_u_j - v
             phi_i += calc_permutations(S=s, p=X.shape[1]) * (v_u_j - v)
-        if count_pos < count_neg:
-            phi_i *= -1
+        # if count_neg < 0:
+        #     phi_i *= -1
         print(i, ": ", phi_i)
         phi += phi_i
     print("local f(x): ", model.predict(x.reshape(1, -1)), '\nBaseline: ', baseline_V, '\nSigma_phi: ', phi)

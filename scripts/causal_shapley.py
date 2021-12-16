@@ -115,20 +115,20 @@ def approximate_shapley(version, xi, N, X, x, m, model, unique_count, causal_str
     score = 0
     count_negative = 0
     vf1, vf2 = 0, 0
-    res = [random.randrange(1, m, 1) for i in range(1000)]
+    # res = [random.randrange(1, m, 1) for i in range(1000)]
     for index, i in enumerate(itertools.permutations(range(N))):
-        if index in res:
+        # if index in res:
             # print(index, '/', m)
-            abs_diff, f1, f2 = get_value(version, list(i), X, x, unique_count, causal_struct, model, N,
-                                         is_classification, xi)
-            vf1 += f1
-            vf2 += f2
-            score += abs_diff
-            if not global_shap:
-                if vf2 > vf1:
-                    count_negative -= 1
-                else:
-                    count_negative += 1
+        abs_diff, f1, f2 = get_value(version, list(i), X, x, unique_count, causal_struct, model, N,
+                                     is_classification, xi)
+        vf1 += f1
+        vf2 += f2
+        score += abs_diff
+        if not global_shap:
+            if vf2 > vf1:
+                count_negative -= 1
+            else:
+                count_negative += 1
     if count_negative < 0 and not global_shap:
         score = -1 * score
     return score / m
@@ -141,7 +141,7 @@ def shapley_main(version, df_X, model, causal_struct, local_shap=0, global_shap=
     n_features = len(feature_names)
     unique_count = collections.Counter(map(tuple, X))
     ##### f(x) with baseline
-    f_o = get_baseline(X, model)[0]
+    f_o = get_baseline(X, model)
     # f_o = 0.0249
     baseline = np.mean(X, axis=0)
     # To convert baseline (mean) to discrete
