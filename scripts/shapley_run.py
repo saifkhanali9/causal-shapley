@@ -20,10 +20,10 @@ class SyntheticModel():
 
 
 # data_path = 'census/x_test'
-data_path = 'synthetic_discrete_3'
+data_path = 'synthetic_cont_1'
 # data_path = 'temp'
 # model_path = 'census/xgb_clf.pkl'
-model_path = 'synthetic_discrete_3.sav'
+model_path = 'synthetic_cont_1.sav'
 df = pd.read_csv('../output/dataset/' + data_path + '.csv')
 X = df.iloc[:, :len(df.columns[:-1])]
 # X = df
@@ -36,7 +36,7 @@ try:
 except FileNotFoundError:
     pass
 start = timeit.default_timer()
-shapley_main(version='2', df_X=X, model=model, causal_struct=causal_struct, local_shap=15, is_classification=True,
+shapley_main(version='1', df_X=X, model=model, causal_struct=causal_struct, local_shap=15, is_classification=False,
              global_shap=False)
 stop = timeit.default_timer()
 print('Time: ', stop - start)

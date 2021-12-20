@@ -170,6 +170,6 @@ def gen_dataset(n_instances=1000, file_name='synthetic'):
     test = 0
 
 
-# gen_dataset(n_instances=10000, file_name='synthetic_cont_1')
+gen_dataset(n_instances=30000, file_name='synthetic_cont_2')
 
-print(gen_desc(10000, [2, 2]))
+# print(gen_desc(30000, [2, 2]))

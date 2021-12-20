@@ -45,7 +45,8 @@ def model_test(folder_name='synthetic1'):
     result = loaded_model.score(X_test, y_test)
     print("Testing: ", result)
 
-file_name = 'synthetic_discrete_3'
+
+file_name = 'synthetic_cont_2'
 # train(model_type='regression',file_name=file_name, save_model=True)
-train(model_type='classification',file_name=file_name, save_model=True)
+train(model_type='regression', file_name=file_name, save_model=True)
 model_test(folder_name=file_name)
