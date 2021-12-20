@@ -1,6 +1,7 @@
 import collections
 import pickle
 
+import time
 import numpy as np
 import pandas as pd
 import math
@@ -13,6 +14,13 @@ class SyntheticModel():
 
     def predict(self, x):
         return x[0]
+
+
+def predict(x, model, is_classification):
+    if is_classification:
+        return model.predict_proba(x.reshape(1, -1))[0][1]
+    else:
+        return model.predict(x.reshape(1, -1))[0]
 
 
 def calc_permutations(S, p):
@@ -40,12 +48,10 @@ def create_s_u_j(s, j):
     return s
 
 
-def get_baseline(X, model):
+def get_baseline(X, model, is_classification):
     fx = 0
-    n_features = X.shape[1]
-    X = np.reshape(X, (len(X), 1, n_features))
-    for i in X:
-        fx += model.predict(i)[0]
+    for x in X:
+        fx += predict(x, model, is_classification)
     return fx / len(X)
 
 
@@ -58,7 +64,7 @@ def get_probability(unique_count, x_hat, indices_baseline, n):
         key = np.asarray(i)
         # for j in indices_baseline:
         if np.array_equal(key[indices_baseline], x_hat[indices_baseline]):
-        # if check:
+            # if check:
             count += unique_count[i]
     return count / n
     # else:
@@ -82,7 +88,7 @@ value_function = {}
 # baseline_dict_value_parent = {}
 
 
-def baseline(X, x, features_baseline, unique_count, model):
+def baseline(X, x, features_baseline, unique_count, model, is_classification):
     # feature_key = " ".join(str(f) for f in features_baseline)
     v = 0
     countt = 0
@@ -92,7 +98,7 @@ def baseline(X, x, features_baseline, unique_count, model):
         return baseline_V
     else:
         baseline_check = []
-        if True:
+        if is_classification:
             for row in X:
                 # countt+= 1
                 # print(countt)
@@ -120,19 +126,21 @@ def baseline(X, x, features_baseline, unique_count, model):
             for row in X:
                 temp_row[:] = x
                 temp_row[features_baseline] = row[features_baseline]
-                v += model.predict_proba(temp_row.reshape(1, -1))[0][1]
-            v = v/len(X)
+                v += predict(temp_row, model, is_classification)
+            v = v / len(X)
 
         # value_function[feature_key] = v
         return v
 
 
-def shap_optimized(X, local_index, model):
+def shap_optimized(X, local_index, model, is_classification):
     features_list = list(range(X.shape[1]))
     unique_count = collections.Counter(map(tuple, X))
     # Loop for phi_i
     phi = 0
+    total_time = 0
     for i in features_list:
+        start_time = time.time()
         features_list_copy = features_list[:]
         # S1 = powerset(features_list)
         del features_list_copy[i]
@@ -149,8 +157,8 @@ def shap_optimized(X, local_index, model):
             s_union_j_baseline = s_baseline[:]
             s_union_j_baseline.remove(i)
             # s_union_j_baseline = list(set(s_union_j).symmetric_difference(features_list))
-            v_u_j = baseline(X, x, s_union_j_baseline, unique_count, model)
-            v = baseline(X, x, s_baseline, unique_count, model)
+            v_u_j = baseline(X, x, s_union_j_baseline, unique_count, model, is_classification)
+            v = baseline(X, x, s_baseline, unique_count, model, is_classification)
             if v_u_j >= v:
                 count_neg -= 1
             else:
@@ -159,19 +167,22 @@ def shap_optimized(X, local_index, model):
             phi_i += calc_permutations(S=s, p=X.shape[1]) * (v_u_j - v)
         # if count_neg < 0:
         #     phi_i *= -1
-        print(i, ": ", phi_i)
+        diff_time = round(time.time() - start_time, 3)
+        total_time += diff_time
+        print("Feature", i, ": ", round(phi_i,6), '\t Time taken: ', diff_time, 'sec')
         phi += phi_i
-    print("local f(x): ", model.predict(x.reshape(1, -1)), '\nBaseline: ', baseline_V, '\nSigma_phi: ', phi)
+    print('\nTotal time: ', round(total_time, 4), ' sec\n\nBaseline: ', baseline_V, '\nSigma_phi: ', phi)
     # Making use of Sigma_phi = f(x) + f_o
     # Where f_o = E(f(X))
-    print("Sigma_phi + E(fX): ", phi + baseline_V)
+    print("\nlocal f(x):\t\t\t", predict(x, model, is_classification), "\nSigma_phi + E(fX):\t", phi + baseline_V)
 
 
-file_name = 'synthetic_discrete_3'
+file_name = 'synthetic_cont_2'
+is_classification = False
 file_path = '../output/dataset/' + file_name + '.csv'
 model_path = '../output/model/' + file_name + '.sav'
 model = pickle.load(open(model_path, 'rb'))
 X = pd.read_csv(file_path).to_numpy()
 X = X[:, :-1]
-baseline_V = get_baseline(X, model)
-shap_optimized(X, 15, model)
+baseline_V = get_baseline(X, model, is_classification)
+shap_optimized(X, 15, model, is_classification)
