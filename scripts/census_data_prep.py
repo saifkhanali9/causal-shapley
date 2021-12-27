@@ -31,7 +31,7 @@ def prepare(input_path, test_ratio, random_state, balanced, one_hot):
     df = df[df['age'] < 82]
     df = df[df['capital_gain'] < 10]
     df = df[df['capital_loss'] < 10]
-    df = df[df['hours_per_week'] < 90]
+    df = df[df['hours_per_week'] < 80]
     # df['age'] = (df['age'] - df['age'].mean()) / df['age'].std()
     # df['education_num'] = (df['education_num'] - df['education_num'].mean()) / df['education_num'].std()
     # df['capital_gain'] = (df['capital_gain'] - df['capital_gain'].mean()) / df['capital_gain'].std()
@@ -72,9 +72,9 @@ def prepare(input_path, test_ratio, random_state, balanced, one_hot):
         df[i] = encoding.transform(df[i])
     en1 = encoding.classes_.tolist()
     en2 = encoding.transform(encoding.classes_).tolist()
-    path = '../output/dataset/census/'
+    path = '../output/dataset/census2/'
     try:
-        os.makedirs('../output/dataset/census/')
+        os.makedirs(path)
     except FileExistsError:
         pass
     # encoded[0]
@@ -100,7 +100,8 @@ def prepare(input_path, test_ratio, random_state, balanced, one_hot):
     y = df.target
     discretizer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='quantile')
     # discretizer.fit(x[['age', 'hours_per_week']])
-    x = x.drop(columns=['capital_gain', 'capital_loss', 'native_country', 'race', 'relationship'])
+    # x = x.drop(columns=['capital_gain', 'capital_loss', 'native_country', 'race', 'relationship'])
+    x = x.drop(columns=['capital_gain', 'capital_loss', 'native_country'])
     # x = x['age', 'hours_per_week']
     # discrete_X = discretizer.transform(x[['age', 'hours_per_week']]).astype(int)
     # x['age'] = discrete_X[:, 0]

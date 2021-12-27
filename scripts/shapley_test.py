@@ -92,7 +92,7 @@ def baseline(x, features_baseline, model):
     return v
 
 
-def shap_optimized(x, model):
+def shap_optimized(X, x, model):
     features_list = list(range(len(x)))
     phi_list = np.zeros(len(x))
     unique_count = collections.Counter(map(tuple, X))
@@ -117,30 +117,34 @@ def shap_optimized(x, model):
                 count_neg += 1
             phi_i += calc_permutations(S=s, p=X.shape[1]) * (v_u_j - v)
         phi_list[i] = phi_i
-        # print(i, ": ", phi_i)
+        print(i, ": ", phi_i)
         phi += phi_i
-    print("local f(x): ", model.predict(x.reshape(1, -1)), '\nBaseline: ', baseline_V, '\nSigma_phi: ', phi)
+    # print("local f(x): ", model.predict(x.reshape(1, -1)), '\nBaseline: ', baseline_V, '\nSigma_phi: ', phi)
     # Making use of Sigma_phi = f(x) + f_o
     # Where f_o = E(f(X))
-    print("Sigma_phi + E(fX): ", phi + baseline_V)
+    # print("Sigma_phi + E(fX): ", phi + baseline_V)
     return phi_list
 
 
-file_name = 'synthetic_discrete_3'
+file_name = 'synthetic_cont_2'
 file_path = '../output/dataset/' + file_name + '.csv'
 model_path = '../output/model/' + file_name + '.sav'
 model = pickle.load(open(model_path, 'rb'))
+local_index = 15
 X = pd.read_csv(file_path).to_numpy()
-X = X[:1, :-1]
+X = X[:1000, :-1]
 tests_passed = 0
 baseline_V = get_baseline(X, model)
-for i, row in enumerate(X):
-    explanations = np.round_(shap_optimized(row, model), 6)
-    XW = np.round_(np.multiply(row, model.coef_), 6)
-    if (np.array_equal(explanations, XW)):
-        tests_passed += 1
-    if (i+1) % 100 == 0:
-        print('Tests_passed: ', tests_passed, '/', len(X))
+# for i, row in enumerate(X):
+#     explanations = np.round_(shap_optimized(row, model), 6)
+#     XW = np.round_(np.multiply(row, model.coef_), 6)
+#     if (np.array_equal(explanations, XW)):
+#         tests_passed += 1
+#     if (i+1) % 100 == 0:
+#         print('Tests_passed: ', tests_passed, '/', len(X))
 # print('Tests_passed: ', tests_passed, '/', len(X))
-# print("x: ", X[15], '\nW: ', model.coef_, '\nX*W', np.multiply(X[15], model.coef_))
-# shap_optimized(X, 15, model)
+weights = np.zeros(len(X[local_index]))
+weights[:] = model.coef_
+weights[-1] = 0
+print("x: ", X[local_index], '\nW: ', weights, '\nX*W', np.multiply(X[local_index], weights))
+shap_optimized(X, X[local_index], model)
