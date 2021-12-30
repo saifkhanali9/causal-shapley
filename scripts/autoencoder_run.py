@@ -20,8 +20,8 @@ else:
 print(dev)
 
 # convert encoded transactional data to torch Variable
-dataset_name = 'census/'
-model_path = '../output/model/' + dataset_name + 'all_epochs/'
+dataset_name = 'census2/'
+model_path = '../output/model/' + dataset_name + 'all_epochs_no_dropouts/'
 os.makedirs(model_path, exist_ok=True)
 x_train = pd.read_csv('../output/dataset/' + dataset_name + '/x_train.csv').to_numpy()
 y_train = pd.read_csv('../output/dataset/' + dataset_name + '/y_train.csv').to_numpy()
@@ -33,13 +33,13 @@ torchY = torch.tensor(y_train, dtype=torch.float).to(dev)
 # X = autograd.Variable(torchX)
 train_data = data_utils.TensorDataset(torchX, torchY)
 
-loss_function = nn.BCEWithLogitsLoss(reduction='mean')
+loss_function = nn.MSELoss(reduction='mean')
 learning_rate = 1e-3
 num_epochs = 1000
-mini_batch_size = 128
+mini_batch_size = 512
 
-encoder_train = TorchEncoder(in_dim=n_features, dropout=0.25)
-decoder_train = TorchDecoder(out_dim=n_features, dropout=0.25)
+encoder_train = TorchEncoder(in_dim=n_features, dropout=0)
+decoder_train = TorchDecoder(out_dim=n_features, dropout=0)
 encoder_train.to(dev)
 decoder_train.to(dev)
 encoder_optimizer = torch.optim.Adam(encoder_train.parameters(), lr=learning_rate)
@@ -133,11 +133,11 @@ for epoch in range(num_epochs):
                                                                                  reconstruction_loss_all.item()))
 
     # =================== save model snapshot to disk ============================
+    if (epoch + 1) % 100 == 0:
+        # save trained encoder model file to disk
+        encoder_model_name = "ep_{}_encoder_model.pth".format((epoch + 1))
+        torch.save(encoder_train.state_dict(), os.path.join(model_path, encoder_model_name))
 
-    # save trained encoder model file to disk
-    encoder_model_name = "ep_{}_encoder_model.pth".format((epoch + 1))
-    torch.save(encoder_train.state_dict(), os.path.join(model_path, encoder_model_name))
-
-    # save trained decoder model file to disk
-    decoder_model_name = "ep_{}_decoder_model.pth".format((epoch + 1))
-    torch.save(decoder_train.state_dict(), os.path.join(model_path, decoder_model_name))
+        # save trained decoder model file to disk
+        decoder_model_name = "ep_{}_decoder_model.pth".format((epoch + 1))
+        torch.save(decoder_train.state_dict(), os.path.join(model_path, decoder_model_name))

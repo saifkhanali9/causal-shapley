@@ -18,7 +18,7 @@ class TorchEncoder(nn.Module):
         self.encoder_R2 = nn.LeakyReLU(negative_slope=neg_slope, inplace=True)
 
         # specify layer 3 - in 32, out 16
-        self.encoder_L3 = nn.Linear(4, 2, bias=True)
+        self.encoder_L3 = nn.Linear(4, 3, bias=True)
         nn.init.xavier_uniform_(self.encoder_L3.weight)
         self.encoder_R3 = nn.LeakyReLU(negative_slope=neg_slope, inplace=True)
         #
@@ -59,7 +59,7 @@ class TorchDecoder(nn.Module):
         super(TorchDecoder, self).__init__()
 
         # specify layer 1 - in 3, out 4
-        self.decoder_L1 = nn.Linear(in_features=2, out_features=4, bias=True)  # add linearity
+        self.decoder_L1 = nn.Linear(in_features=3, out_features=4, bias=True)  # add linearity
         nn.init.xavier_uniform_(self.decoder_L1.weight)  # init weights according to [9]
         self.decoder_R1 = nn.LeakyReLU(negative_slope=neg_slope, inplace=True)  # add non-linearity according to [10]
 
