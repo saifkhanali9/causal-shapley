@@ -14,7 +14,7 @@ import torch
 from autoencoder import TorchDecoder, TorchEncoder
 
 if torch.cuda.is_available():
-    #     dev = "cuda:0"
+    # dev = "cuda:0"
     dev = "cpu"
 else:
     dev = "cpu"
@@ -62,9 +62,9 @@ def pred(x, enc, dec):
     loss_fn = nn.MSELoss(reduction='none')
     los_val = loss_fn(y, x)
     loss_per_row = torch.mean(los_val, dim=1)
-    loss_per_row[loss_per_row > loss_threshold] = 1
     loss_per_row[loss_per_row <= loss_threshold] = 0
-    ll = loss_per_row.unique(return_counts=True)
+    loss_per_row[loss_per_row > loss_threshold] = 1
+    # ll = loss_per_row.unique(return_counts=True)
     return loss_per_row
 
 
@@ -90,7 +90,6 @@ def baseline(X, x, features_baseline, model):
 
 def multithreaded_powerset(X, x, s, s_index, feature_index, features_list, model):
     # for count_power, s in enumerate(S):
-    print(s_index, '/', 2 ** len(x))
     s_baseline = list(set(s).symmetric_difference(features_list))
     s_union_j_baseline = s_baseline[:]
     s_union_j_baseline.remove(feature_index)
@@ -108,7 +107,6 @@ def multithreaded_main(feature, X, x, features_list, model):
     S = powerset(features_list_copy)
     phi_i = 0
     for count_power, s in enumerate(S):
-        print(feature, count_power, '/', 2 ** (len(features_list) - 1))
         s_baseline = list(set(s).symmetric_difference(features_list))
         s_union_j_baseline = s_baseline[:]
         s_union_j_baseline.remove(feature)
@@ -118,8 +116,8 @@ def multithreaded_main(feature, X, x, features_list, model):
     phi_i = phi_i.item()
     diff_time = round(time.time() - start_time, 3)
     # total_time += diff_time
-    print("Feature", feature, " | ", feature_names[feature], ": \t\t", round(phi_i, 4), '\t Time taken: ', diff_time,
-          'sec')
+    # print("Feature", feature, " | ", feature_names[feature], ": \t\t", round(phi_i, 4), '\t Time taken: ', diff_time,
+    #       'sec')
     return phi_i
 
 
@@ -131,13 +129,12 @@ def shap_optimized(X, x, feature_names, model):
     feature_scores = Parallel(n_jobs=-1)(
         delayed(multithreaded_main)(feature, X, x, features_list, model) for feature in
         features_list)
-    print(feature_scores, type(feature_scores))
-    print('\nTotal time: ', round(total_time, 4), ' sec\n\nBaseline: ', baseline_V, '\nSigma_phi: ',
-          sum(feature_scores))
-    # Making use of Sigma_phi = f(x) + f_o
-    # Where f_o = E(f(X))
-    print("\nlocal f(x):\t\t\t", predict(x, model), "\nSigma_phi + E(fX):\t",
-          round(sum(feature_scores) + baseline_V, 7))
+    # print('\nTotal time: ', round(total_time, 4), ' sec\n\nBaseline: ', baseline_V, '\nSigma_phi: ',
+    #       sum(feature_scores))
+    # # Making use of Sigma_phi = f(x) + f_o
+    # # Where f_o = E(f(X))
+    # print("\nlocal f(x):\t\t\t", predict(x, model), "\nSigma_phi + E(fX):\t",
+    #       round(sum(feature_scores) + baseline_V, 7))
     return feature_scores
 
 
@@ -155,14 +152,13 @@ epoch = 1000
 loss_threshold = 210
 
 # Loading/Reading files
-model_path = '/home/saif/MyStuff/UdS/Thesis/Proposal/causal-shapley/output/model/census2/all_epochs_no_dropouts/'
+model_path = '../output/model/census2/all_epochs_no_dropouts/'
 encoder_model = model_path + 'ep_' + str(epoch) + '_encoder_model.pth'
 decoder_model = model_path + 'ep_' + str(epoch) + '_decoder_model.pth'
 df = pd.read_csv(x_path)
 anomalous_data = pd.read_csv(anomaly_path).to_numpy()
 feature_names = df.columns.tolist()
 X = df.to_numpy()
-print(X.shape)
 os.makedirs(output_file_path, exist_ok=True)
 encoder = TorchEncoder(in_dim=X.shape[1]).to(dev)
 decoder = TorchDecoder(out_dim=X.shape[1]).to(dev)
@@ -176,6 +172,7 @@ X = torch.tensor(X, dtype=torch.float).to(dev)
 baseline_V = get_baseline(X, model)
 
 for row_num, data_point in enumerate(anomalous_data):
+    print(f"Row number: {row_num} / 100")
     data_point = torch.tensor(data_point, dtype=torch.float).to(dev)
     explanations = {}
     feature_score_list = shap_optimized(X, data_point, feature_names, model)
@@ -184,8 +181,9 @@ for row_num, data_point in enumerate(anomalous_data):
     for i, name in enumerate(feature_names):
         explanations[name] = feature_score_list[i]
     explanations = dict(sorted(explanations.items(), key=lambda item: item[1]))
-    with open(output_file_path + str(row_num) + '.txt', 'w') as file:
-        file.write(json.dumps(explanations))
-    plot = sns.barplot(y=feature_names, x=feature_score_list)
+    with open(output_file_path + str(row_num) + '.json', 'w') as file:
+        json.dump(explanations, file)
+    plot = sns.barplot(y=list(explanations.keys()), x=list(explanations.values()))
     plt.savefig(output_file_path + str(row_num) + '.png')
-    break
+    plt.clf()
+    # break

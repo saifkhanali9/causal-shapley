@@ -36,9 +36,9 @@ df_anomalous = pd.read_csv('../output/dataset/census2/x_test.csv')
 anomaly_desciption = 'Features sex=19, hours_per_week=80, workclass=79 were set to give most distance from their neighbours.'
 # df_anomalous['education'] = 16
 # df_anomalous['education_num'] = 1
-df_anomalous['sex'] = 19
-df_anomalous['hours_per_week'] = 80
-df_anomalous['workclass'] = 79
+df_anomalous['education_num'] = 1
+df_anomalous['hours_per_week'] = 1
+df_anomalous['education'] = 16
 x_anomalous = df_anomalous.sample(n=total_anoamlies)
 
 # Started writing
