@@ -137,19 +137,29 @@ def shap_optimized(X, x, feature_names, model):
     #       round(sum(feature_scores) + baseline_V, 7))
     return feature_scores
 
+    # Setting parameters/paths and loading files
 
-# Setting parameters/paths and loading files
+
+# dataset_dict = {"distance_age_educationnum_sex": 200,
+#                 "distance_age_hpw_sex": 210,
+#                 "distance_sex_hpw_workclass": 205,
+#                 "jp_hpw_age_sex": 305,
+#                 "jp_hpw_educationnum_age_sex": 300,
+#                 "jp_workclass_age_educationnum": 290,
+#                 "tuner_hpw_age": 380}
+dataset_dict = {"jp_workclass_age_education":  280,
+                "jp_sex_hpw_education_age": 205}
+
 file_name = 'census/'
-anomaly_type = 'distance_sex_hpw_workclass'
+anomaly_type = 'tuner_hpw_age'
 file_path = '../output/anomaly_included/' + file_name + anomaly_type
 x_path = file_path + '/x_test.csv'
 anomaly_path = file_path + '/anomalous_data.csv'
 output_file_path = file_path + '/explanations/'
 anomalous = '../output/anomaly_included/'
 is_classification = True
-local_index = 15
 epoch = 1000
-loss_threshold = 210
+# loss_threshold = 225
 
 # Loading/Reading files
 model_path = '../output/model/census2/all_epochs_no_dropouts/'
@@ -169,21 +179,37 @@ decoder.eval()
 model = [encoder, decoder]
 X = torch.tensor(X, dtype=torch.float).to(dev)
 # Operations Starting
-baseline_V = get_baseline(X, model)
+# baseline_V = get_baseline(X, model)
 
-for row_num, data_point in enumerate(anomalous_data):
-    print(f"Row number: {row_num} / 100")
-    data_point = torch.tensor(data_point, dtype=torch.float).to(dev)
-    explanations = {}
-    feature_score_list = shap_optimized(X, data_point, feature_names, model)
+for file in list(dataset_dict.keys()):
+    print(file)
+    loss_threshold = dataset_dict[file]
+    anomaly_type = file
+    file_path = '../output/anomaly_included/' + file_name + anomaly_type
+    x_path = file_path + '/x_test.csv'
+    df = pd.read_csv(x_path)
+    X = df.to_numpy()
+    X = torch.tensor(X, dtype=torch.float).to(dev)
+    anomaly_path = file_path + '/anomalous_data.csv'
+    anomalous_data = pd.read_csv(anomaly_path).to_numpy()
+    output_file_path = file_path + '/explanations/'
+    os.makedirs(output_file_path, exist_ok=True)
+    for row_num, data_point in enumerate(anomalous_data):
+        if (row_num + 1) % 10 == 0:
+            print(f"Row number: {row_num + 1} / 100")
+        data_point = torch.tensor(data_point, dtype=torch.float).to(dev)
+        explanations = {}
+        feature_score_list = shap_optimized(X, data_point, feature_names, model)
 
-    # Plotting and saving explanations
-    for i, name in enumerate(feature_names):
-        explanations[name] = feature_score_list[i]
-    explanations = dict(sorted(explanations.items(), key=lambda item: item[1]))
-    with open(output_file_path + str(row_num) + '.json', 'w') as file:
-        json.dump(explanations, file)
-    plot = sns.barplot(y=list(explanations.keys()), x=list(explanations.values()))
-    plt.savefig(output_file_path + str(row_num) + '.png')
-    plt.clf()
+        # Plotting and saving explanations
+        for i, name in enumerate(feature_names):
+            explanations[name] = feature_score_list[i]
+        explanations = dict(sorted(explanations.items(), key=lambda item: item[1]))
+        with open(output_file_path + str(row_num + 1) + '.json', 'w') as file:
+            json.dump(explanations, file)
+        plot = sns.barplot(y=list(explanations.keys()), x=list(explanations.values()))
+        plt.savefig(output_file_path + str(row_num + 1) + '.png')
+        plt.clf()
+        if row_num == 99:
+            break
     # break
