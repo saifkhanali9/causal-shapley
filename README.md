@@ -1,34 +1,24 @@
-## Running the code:
-- Just run the code by pressing play button.
-- You can make configurations in you run by changing the very last line of causal_shaplye.py
-    - main(version='4', file_name='synthetic_discrete_2', local_shap=15, is_classification=True, global_shap=False)
-- Argument file_name has all the necessary information for the dataset. A csv file is located under output/dataset/file_name.csv which contains the complete dataset to be used for Shapley value computation.While causal structure of the data is located under  which is located under output/dataset/file_name/causal_struct.json
-- Argument version specifies which version of shapley value you want to run. There are three versions at the moment
-    - a) version='1' -> Marginal shapley value
-    - b) version='2' -> Marginal shapley value (Optimised versions, i.e all the counts of unique rows of dataset are pre calculated)
-    - c) version='3' -> Conditional shapley value
-    - d) version='4' -> Causal shapley value
-
-## Pre-requisites:
-- Run synthetic_data_gen.py
-  - uncomment gen_desc() to generate discrete dataset. Modify _add_features() method to add causality in the dataset.
-  - for continuous data use gen_dataset()
-  - In both cases, supply file name. It creates a csv file under output/dataset/file_name.csv
-- Train the model
-  - Run train(model_type='classification',file_name='synthetic_discrete_2', save_model=True) by specifying relevant arguments. It creates a folder of output/dataset/file_name under which train and test files are stored.
-  - Manually create a json file under output/dataset/file_name with name causal_struct.json with syntax 
-    - {
-    "0": [ ],
-    "1": [ ],
-    "2": [
-      0,
-      1
-    ],
-    "3": [
-      0,
-      1,
-      2
-    ]
-}
-    - With keys being feature_id and value being the parents of that feature_id
-  - Model is saved under output/model/file_name.sav
+## Files and their use:
+  - anomaly_distance.py:
+    - Used to find anomaly based on distance. Checks for certain features the furthest combination in feature space.
+  - anomaly_gen_distance.py:
+    - Generates the dataset for values of feature found in anomaly_distance.py
+  - anomaly_joint_prob.py
+    - Works the same way as anomaly_distance.py. The only difference is that it gets the probability instead of distance.
+    - anomaly_gen_distance.py should be used to generate the dataset with certain feature value.
+  - anomaly_training.py
+    - For training third party anomaly detector models from Pyod including Iforest, Knn, Autoencoders.
+  - autoencoder.py:
+    - Pytorch's Model implementation of autoencoder
+  - autoencoder_run.py:
+    - script for training the above autoencoder.
+  - autoencoder_validate.py:
+    - Works as a test run for above autoencoder trained. You supply a normal and anomalous dataset, and plot a scatter-plot for both. Anomalous points are expected to have higher loss value.
+  - census_data_prep.py:
+    - To prepare and clean the census dataset.
+  - check_dependance.py:
+    - Generates a correlation matrix for continous features, to get an idea about generating anomalies. (Not uses)
+  - plot_anomalies.py:
+    - To generate a scatter-plot with mutliple types of already generated anomalies.
+  - plot_from_txt.py:
+    - Used to generate explanation (bar) plots using shapley score's json. Not used anymore as implemented in shapley_optmised.py itself.
