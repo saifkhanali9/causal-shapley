@@ -147,8 +147,10 @@ def shap_optimized(X, x, feature_names, model):
 #                 "jp_hpw_educationnum_age_sex": 300,
 #                 "jp_workclass_age_educationnum": 290,
 #                 "tuner_hpw_age": 380}
-dataset_dict = {"jp_workclass_age_education":  280,
-                "jp_sex_hpw_education_age": 205}
+datasets = ["distance_age_education_sex", "distance_age_hpw_sex", "distance_sex_hpw_workclass", "jp_hpw_age_sex",
+            "jp_hpw_sex_edu_age", "jp_workclass_age_edu", "tuner_hpw_age"]
+# dataset_dict = {"jp_workclass_age_education":  280,
+#                 "jp_sex_hpw_education_age": 205}
 
 file_name = 'census/'
 anomaly_type = 'tuner_hpw_age'
@@ -180,12 +182,12 @@ model = [encoder, decoder]
 X = torch.tensor(X, dtype=torch.float).to(dev)
 # Operations Starting
 # baseline_V = get_baseline(X, model)
-
-for file in list(dataset_dict.keys()):
+threshold = 412.15973
+for file in datasets:
     print(file)
-    loss_threshold = dataset_dict[file]
+    loss_threshold = threshold
     anomaly_type = file
-    file_path = '../output/anomaly_included/' + file_name + anomaly_type
+    file_path = '../output/anomaly_included_1000/' + file_name + anomaly_type
     x_path = file_path + '/x_test.csv'
     df = pd.read_csv(x_path)
     X = df.to_numpy()
