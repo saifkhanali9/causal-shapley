@@ -20,7 +20,7 @@ else:
 print(dev)
 
 # convert encoded transactional data to torch Variable
-dataset_name = 'census2/'
+dataset_name = 'census3/'
 model_path = '../output/model/' + dataset_name + 'all_epochs_no_dropouts/'
 os.makedirs(model_path, exist_ok=True)
 x_train = pd.read_csv('../output/dataset/' + dataset_name + '/x_train.csv').to_numpy()

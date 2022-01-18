@@ -65,14 +65,14 @@ def prepare(input_path, test_ratio, random_state, balanced, one_hot):
         categorical_cols = ['education']
     else:
         categorical_cols = ['workclass', 'marital_status',
-                            'occupation', 'relationship', 'race', 'sex', 'native_country']
+                            'occupation', 'relationship', 'race', 'native_country']
     encoding = LabelEncoder()
     encoding.fit(df[categorical_cols].stack().unique())
     for i in categorical_cols:
         df[i] = encoding.transform(df[i])
     en1 = encoding.classes_.tolist()
     en2 = encoding.transform(encoding.classes_).tolist()
-    path = '../output/dataset/census2/'
+    path = '../output/dataset/census3/'
     try:
         os.makedirs(path)
     except FileExistsError:
@@ -86,41 +86,25 @@ def prepare(input_path, test_ratio, random_state, balanced, one_hot):
         'HS-grad': 10, 'Prof-school': 11, 'Assoc-acdm': 12, 'Assoc-voc': 13, 'Some-college': 14, 'Bachelors': 15,
         'Masters': 16, 'Doctorate': 17
     }
+    sex = {"Male": 0,
+           "Female": 1}
     x = df.drop("target", axis=1)
-    print(x['education'].unique())
     # x.education[x.education == 'Bachelors'] = educations
     print(educations['Bachelors'])
     for i in educations:
         x = x.replace(" " + i, educations[i])
-    # for i in x.rows():
-
-    # x["education_cat"] = df["education"].replace(education)
-    # print(x['education'].astype("category", ordered=True, categories=education).cat.codes)
-    print(x.head(), x.education.unique())
+    for i in sex:
+        x = x.replace(" " + i, sex[i])
     y = df.target
-    discretizer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='quantile')
-    # discretizer.fit(x[['age', 'hours_per_week']])
     # x = x.drop(columns=['capital_gain', 'capital_loss', 'native_country', 'race', 'relationship'])
-    x = x.drop(columns=['capital_gain', 'capital_loss', 'native_country'])
-    # x = x['age', 'hours_per_week']
-    # discrete_X = discretizer.transform(x[['age', 'hours_per_week']]).astype(int)
-    # x['age'] = discrete_X[:, 0]
-    # x['hours_per_week'] = discrete_X[:, 1]
+    x = x.drop(columns=['capital_gain', 'capital_loss'])
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=int(random_state),
                                                         stratify=y)
-
-    # x_val, x_test, y_val, y_test = train_test_split(x_test, y_test,
-    #                                                 test_size=test_size / (test_size + validation_size),
-    #                                                 random_state=int(random_state), stratify=y_test)
-
-    # Create temporary directory
     # with tempfile.TemporaryDirectory() as dirpath:
     x_train.to_csv(path + '/x_train.csv', header=True, index=False)
     y_train.to_csv(path + '/y_train.csv', header=True, index=False)
     x_test.to_csv(path + '/x_test.csv', header=True, index=False)
     y_test.to_csv(path + '/y_test.csv', header=True, index=False)
-    # x_val.to_csv(dirpath + '/x_val.csv', header=True, index=False)
-    # y_val.to_csv(dirpath + '/y_val.csv', header=True, index=False)
 
 
 def gb_training_cycle():

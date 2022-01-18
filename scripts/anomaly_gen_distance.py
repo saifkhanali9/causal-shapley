@@ -28,42 +28,43 @@ def pred(x, enc, dec):
 
 total_anoamlies = 130
 epoch = 1000
-model_path = '../output/model/census2/all_epochs_no_dropouts/'
+dataset_name = 'census2'
+model_path = f'../output/model/{dataset_name}/all_epochs_no_dropouts/'
 encoder_model = model_path + 'ep_' + str(epoch) + '_encoder_model.pth'
 decoder_model = model_path + 'ep_' + str(epoch) + '_decoder_model.pth'
-df_normal = pd.read_csv('../output/dataset/census2/x_test.csv')
-df_anomalous = pd.read_csv('../output/dataset/census2/x_test.csv')
-anomaly_desciption = 'Features sex=19, hours_per_week=80, workclass=79 were set to give most distance from their neighbours.'
+df_normal = pd.read_csv(f'../output/dataset/{dataset_name}/x_test.csv')
+df_anomalous = pd.read_csv(f'../output/dataset/{dataset_name}/x_test.csv')
+anomaly_description = 'Features sex=19, age=80, education=1 were set to give most distance from their neighbours.'
+df_anomalous['age'] = 80
+df_anomalous['sex'] = 19
+df_anomalous['education'] = 1
+# df_anomalous['hours_per_week'] = 1
 # df_anomalous['education'] = 16
-# df_anomalous['education_num'] = 1
-df_anomalous['education_num'] = 1
-df_anomalous['hours_per_week'] = 1
-df_anomalous['education'] = 16
-x_anomalous = df_anomalous.sample(n=total_anoamlies)
+# x_anomalous = df_anomalous.sample(n=total_anoamlies)
 
 # Started writing
 # if False:
-dataset_path = '../output/anomaly_included/census/'
+dataset_path = f'../output/anomaly_included/{dataset_name}/'
 anomaly_type = 'distance'
-anomaly_name = '_sex_hpw_workclass_temp/'
+anomaly_name = '_age_education_sex/'
 anomaly_path = dataset_path + anomaly_type + anomaly_name
 os.makedirs(anomaly_path, exist_ok=True)
 with open(anomaly_path + 'readme.txt', 'w') as f:
-    f.write(anomaly_desciption)
+    f.write(anomaly_description)
 
 # Train set
-shutil.copyfile('../output/dataset/census2/x_train.csv', anomaly_path + '/x_train.csv')
+shutil.copyfile('../output/dataset/census3/x_train.csv', anomaly_path + '/x_train.csv')
 
 # Antoine's set
 df_normal[:1000].to_csv(anomaly_path + 'x_test_antoine.csv', index=False)
 # Test set
 df_normal[1000:].to_csv(anomaly_path + 'x_test.csv', index=False)
-# Anomalies
-x_anomalous[:100].to_csv(anomaly_path + 'anomalous_data.csv', index=False)
 # Anomalies Antoine
-x_anomalous[100:].to_csv(anomaly_path + 'anomalous_data_antoine.csv', index=False)
+df_anomalous[:1000].to_csv(anomaly_path + 'anomalous_data_antoine.csv', index=False)
+# Anomalies
+df_anomalous[1000:].to_csv(anomaly_path + 'anomalous_data.csv', index=False)
 
-x_anomalous = x_anomalous.to_numpy()
+x_anomalous = df_anomalous.to_numpy()
 x_normal = df_normal.to_numpy()
 
 encoder = TorchEncoder(in_dim=x_normal.shape[1]).to(dev)
@@ -77,7 +78,7 @@ randomlist = random.sample(range(0, len(score_normal)), total_anoamlies)
 score_anomalous = pred(torch.tensor(x_anomalous, dtype=torch.float).to(dev), encoder, decoder)
 print(score_anomalous, score_normal)
 sns.scatterplot(y=score_normal, x=list(range(len(score_normal))))
-sns.scatterplot(y=score_anomalous, x=randomlist)
+sns.scatterplot(y=score_anomalous, x=list(range(len(score_anomalous))))
 plt.savefig(anomaly_path + '/scatter_plot.png')
 plt.show()
 # print(model.predict_proba(x_normal))

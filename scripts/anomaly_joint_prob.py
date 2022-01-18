@@ -55,13 +55,15 @@ def permutation(X, key):
 #     "sex": ["education", "relationship", "occupation"]
 # }
 causal = {
-    "hours_per_week": ["education_num", "education"]
+    "education_num": ["workclass", "age"]
 }
 x_train = pd.read_csv('../output/dataset/census2/x_train.csv')
 # x_test = pd.read_csv('../datasets/prepared/x_test.csv')
 for i in causal:
     causal[i].append(i)
-    for j in causal[i]:
-        permutation(x_train, j)
-    permutations = calc_prob(unique_values, causal[i])
-    prob(x_train, np.array(permutations), causal[i], parent_child=True)
+    features = causal[i]
+for j in features:
+    permutation(x_train, j)
+permutations = calc_prob(unique_values, features)
+# print(i)
+prob(x_train, np.array(permutations), features, parent_child=True)

@@ -62,8 +62,8 @@ def pred(x, enc, dec):
     loss_fn = nn.MSELoss(reduction='none')
     los_val = loss_fn(y, x)
     loss_per_row = torch.mean(los_val, dim=1)
-    loss_per_row[loss_per_row <= loss_threshold] = 0
-    loss_per_row[loss_per_row > loss_threshold] = 1
+    # loss_per_row[loss_per_row <= loss_threshold] = 0
+    # loss_per_row[loss_per_row > loss_threshold] = 1
     # ll = loss_per_row.unique(return_counts=True)
     return loss_per_row
 
@@ -147,29 +147,24 @@ def shap_optimized(X, x, feature_names, model):
 #                 "jp_hpw_educationnum_age_sex": 300,
 #                 "jp_workclass_age_educationnum": 290,
 #                 "tuner_hpw_age": 380}
-dataset_dict = {"jp_workclass_age_education":  280,
-                "jp_sex_hpw_education_age": 205}
-
-file_name = 'census/'
-anomaly_type = 'tuner_hpw_age'
+# dataset_dict = {"jp_workclass_age_education":  280,
+dataset_dict = ['distance_age_education_sex']
+file_name = 'census3/'
+anomaly_type = dataset_dict[0]
 file_path = '../output/anomaly_included/' + file_name + anomaly_type
 x_path = file_path + '/x_test.csv'
-anomaly_path = file_path + '/anomalous_data.csv'
-output_file_path = file_path + '/explanations/'
 anomalous = '../output/anomaly_included/'
 is_classification = True
 epoch = 1000
 # loss_threshold = 225
 
 # Loading/Reading files
-model_path = '../output/model/census2/all_epochs_no_dropouts/'
+model_path = f'../output/model/{file_name}/all_epochs_no_dropouts/'
 encoder_model = model_path + 'ep_' + str(epoch) + '_encoder_model.pth'
 decoder_model = model_path + 'ep_' + str(epoch) + '_decoder_model.pth'
 df = pd.read_csv(x_path)
-anomalous_data = pd.read_csv(anomaly_path).to_numpy()
 feature_names = df.columns.tolist()
 X = df.to_numpy()
-os.makedirs(output_file_path, exist_ok=True)
 encoder = TorchEncoder(in_dim=X.shape[1]).to(dev)
 decoder = TorchDecoder(out_dim=X.shape[1]).to(dev)
 encoder.load_state_dict(torch.load(encoder_model))
@@ -177,13 +172,13 @@ decoder.load_state_dict(torch.load(decoder_model))
 encoder.eval()
 decoder.eval()
 model = [encoder, decoder]
-X = torch.tensor(X, dtype=torch.float).to(dev)
+# X = torch.tensor(X, dtype=torch.float).to(dev)
 # Operations Starting
 # baseline_V = get_baseline(X, model)
 
-for file in list(dataset_dict.keys()):
+for file in list(dataset_dict):
     print(file)
-    loss_threshold = dataset_dict[file]
+    loss_threshold = 200
     anomaly_type = file
     file_path = '../output/anomaly_included/' + file_name + anomaly_type
     x_path = file_path + '/x_test.csv'

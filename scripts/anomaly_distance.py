@@ -70,7 +70,7 @@ def permutation(X, key):
 #     "sex": ["education", "relationship", "occupation"]
 # }
 causal = {
-    "education": ["hours_per_week", "workclass"]
+    "age": ["hours_per_week", "sex"]
 }
 x_train = pd.read_csv('../output/dataset/census/x_train.csv')
 x_test = pd.read_csv('../output/dataset/census/x_test.csv')
