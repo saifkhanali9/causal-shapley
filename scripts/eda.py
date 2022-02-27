@@ -1,4 +1,5 @@
 import json
+import os
 from os import path
 
 import matplotlib.pyplot as plt
@@ -7,11 +8,14 @@ import pandas as pd
 import seaborn as sns
 
 parent_path = '../output/anomaly_included/'
-dataset_name = 'census/'
-
+dataset_name = 'census2/'
 anomaly_types = ["distance_age_education_sex",
                  "distance_age_hpw_sex", "distance_sex_hpw_workclass", "jp_hpw_age_sex",
                  "jp_sex_hpw_education_age", "jp_workclass_age_education", "tuner_hpw_age"]
+
+# anomaly_types = ["distance_age_hpw_sex"]
+output_path = parent_path + dataset_name + 'all_experiments/'
+os.makedirs(output_path, exist_ok=True)
 
 
 def build_dict(feature_list, explanation_path):
@@ -45,18 +49,18 @@ def mean_std():
         mean_dict_sorted = dict(sorted(mean_dict.items(), key=lambda item: item[1]))
         std_dict_sorted = dict(sorted(std_dict.items(), key=lambda item: item[1]))
 
-        with open(till_anomalytype + 'explanation_mean.json', 'w') as file:
+        with open(output_path + anomaly_type + '_mean.json', 'w') as file:
             json.dump(mean_dict_sorted, file)
-        with open(till_anomalytype + 'explanation_std.json', 'w') as file:
+        with open(output_path + anomaly_type + '_std.json', 'w') as file:
             json.dump(std_dict_sorted, file)
 
         # saving plots
         sns.barplot(y=list(mean_dict_sorted.keys()), x=list(mean_dict_sorted.values()))
-        plt.savefig(till_anomalytype + 'explanation_mean.png')
+        plt.savefig(output_path + anomaly_type + '_mean.png')
         plt.clf()
 
         sns.barplot(y=list(std_dict_sorted.keys()), x=list(std_dict_sorted.values()))
-        plt.savefig(till_anomalytype + 'explanation_std.png')
+        plt.savefig(output_path + anomaly_type + '_std.png')
         plt.clf()
     print("\nDONE!")
 
@@ -85,4 +89,5 @@ def box_plots():
         break
 
 
-box_plots()
+mean_std()
+# box_plots()

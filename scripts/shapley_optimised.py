@@ -1,5 +1,6 @@
 import os
 import pickle
+import random
 
 import time
 import numpy as np
@@ -101,7 +102,7 @@ def multithreaded_powerset(X, x, s, s_index, feature_index, features_list, model
 
 def multithreaded_main(feature, X, x, features_list, model):
     # for i in features_list:
-    start_time = time.time()
+    # start_time = time.time()
     features_list_copy = features_list[:]
     del features_list_copy[feature]
     S = powerset(features_list_copy)
@@ -114,7 +115,7 @@ def multithreaded_main(feature, X, x, features_list, model):
         v = baseline(X, x, s_baseline, model)
         phi_i += calc_permutations(S=s, p=X.shape[1]) * (v_u_j - v)
     phi_i = phi_i.item()
-    diff_time = round(time.time() - start_time, 3)
+    # diff_time = round(time.time() - start_time, 3)
     # total_time += diff_time
     # print("Feature", feature, " | ", feature_names[feature], ": \t\t", round(phi_i, 4), '\t Time taken: ', diff_time,
     #       'sec')
@@ -148,54 +149,64 @@ def shap_optimized(X, x, feature_names, model):
 #                 "jp_workclass_age_educationnum": 290,
 #                 "tuner_hpw_age": 380}
 # dataset_dict = {"jp_workclass_age_education":  280,
-dataset_dict = ['distance_age_education_sex']
-file_name = 'census3/'
-anomaly_type = dataset_dict[0]
+# anomaly_types = ["distance_sex_hpw_workclass", "jp_hpw_age_sex",
+#                  "jp_sex_hpw_education_age", "jp_workclass_age_education", "tuner_hpw_age"]
+anomaly_types = ['distance_age_education_sex']
+file_name = 'census2/'
+anomaly_type = anomaly_types[0]
 file_path = '../output/anomaly_included/' + file_name + anomaly_type
 x_path = file_path + '/x_test.csv'
-anomalous = '../output/anomaly_included/'
-is_classification = True
+# anomalous = '../output/anomaly_included/'
+# is_classification = True
 epoch = 1000
 # loss_threshold = 225
-
+total_anoamlies = 200
 # Loading/Reading files
 model_path = f'../output/model/{file_name}/all_epochs_no_dropouts/'
 encoder_model = model_path + 'ep_' + str(epoch) + '_encoder_model.pth'
 decoder_model = model_path + 'ep_' + str(epoch) + '_decoder_model.pth'
 df = pd.read_csv(x_path)
+# random_indices = random.sample(range(0, df.shape[0]), total_anoamlies)
 feature_names = df.columns.tolist()
-X = df.to_numpy()
+# X_test = df.iloc[random_indices, :]
+X_test = df
+X = torch.tensor(df.to_numpy(), dtype=torch.float).to(dev)
 encoder = TorchEncoder(in_dim=X.shape[1]).to(dev)
 decoder = TorchDecoder(out_dim=X.shape[1]).to(dev)
-encoder.load_state_dict(torch.load(encoder_model))
-decoder.load_state_dict(torch.load(decoder_model))
+encoder.load_state_dict(torch.load(encoder_model, map_location=torch.device('cpu')))
+decoder.load_state_dict(torch.load(decoder_model, map_location=torch.device('cpu')))
 encoder.eval()
 decoder.eval()
 model = [encoder, decoder]
-# X = torch.tensor(X, dtype=torch.float).to(dev)
+X_test = torch.tensor(X_test.to_numpy(), dtype=torch.float).to(dev)
 # Operations Starting
-# baseline_V = get_baseline(X, model)
+baseline_V = get_baseline(X, model)
 
-for file in list(dataset_dict):
+for file in anomaly_types:
     print(file)
     loss_threshold = 200
     anomaly_type = file
     file_path = '../output/anomaly_included/' + file_name + anomaly_type
-    x_path = file_path + '/x_test.csv'
+    x_path = file_path + '/anomalous_data.csv'
     df = pd.read_csv(x_path)
-    X = df.to_numpy()
-    X = torch.tensor(X, dtype=torch.float).to(dev)
+    # X_anomalous = df.iloc[random_indices, :].to_numpy()
+    X_anomalous = df.to_numpy()
+    # X_anomalous = df.to_numpy()
+    X_anomalous = torch.tensor(X_anomalous, dtype=torch.float).to(dev)
     anomaly_path = file_path + '/anomalous_data.csv'
     anomalous_data = pd.read_csv(anomaly_path).to_numpy()
     output_file_path = file_path + '/explanations/'
     os.makedirs(output_file_path, exist_ok=True)
     for row_num, data_point in enumerate(anomalous_data):
+        print(row_num)
         if (row_num + 1) % 10 == 0:
-            print(f"Row number: {row_num + 1} / 100")
+            print(f"Row number: {row_num + 1} / 2"
+                  f"00")
         data_point = torch.tensor(data_point, dtype=torch.float).to(dev)
         explanations = {}
-        feature_score_list = shap_optimized(X, data_point, feature_names, model)
-
+        feature_score_list_anomalous = shap_optimized(X, data_point, feature_names, model)
+        feature_score_list_normal = shap_optimized(X, X_test[row_num], feature_names, model)
+        feature_score_list = np.array(feature_score_list_anomalous) - np.array(feature_score_list_normal)
         # Plotting and saving explanations
         for i, name in enumerate(feature_names):
             explanations[name] = feature_score_list[i]
@@ -205,6 +216,7 @@ for file in list(dataset_dict):
         plot = sns.barplot(y=list(explanations.keys()), x=list(explanations.values()))
         plt.savefig(output_file_path + str(row_num + 1) + '.png')
         plt.clf()
-        if row_num == 99:
+        # break
+        if row_num + 1 == 200:
             break
     # break
